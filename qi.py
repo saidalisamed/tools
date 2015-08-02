@@ -9,10 +9,10 @@ import sys
 import json
 from os.path import expanduser
 from time import sleep
-from botocore.exceptions import NoCredentialsError
 
 try:
     import boto3
+    from botocore.exceptions import NoCredentialsError
 except:
     print('Module \'boto3\' missing. Install by running \'pip install boto3\'')
     print('If you don\'t have pip, install it from https://pip.pypa.io/en/latest/installing.html')
@@ -223,7 +223,6 @@ def get_instance_detail(instance_id, stack_name, key, username, region):
 
 
 def get_template(prop, stack_name):
-    #/TODO: add native json instead
     template = """
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
@@ -272,6 +271,7 @@ def get_template(prop, stack_name):
 }
 """ % (prop['device'], prop['volume'], prop['ami'], prop['type'], prop['key'],
        stack_name, prop['bootstrap'], prop['role'])
+    #/TODO: add native json instead
     return template
 
 
