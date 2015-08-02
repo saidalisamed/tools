@@ -1,11 +1,22 @@
 #!/usr/bin/env python
 
+# Launches and terminates AWS ec2 instances quickly using CloudFormation.
+# Date: 01 August 2015
+# Author: Said Ali Samed
+
 import getopt
 import sys
 import json
 from os.path import expanduser
 from time import sleep
-import boto3
+from botocore.exceptions import NoCredentialsError
+
+try:
+    import boto3
+except:
+    print('Module \'boto3\' missing. Install by running \'pip install boto3\'')
+    print('If you don\'t have pip, install it from https://pip.pypa.io/en/latest/installing.html')
+    exit(2)
 
 conf_file = expanduser("~") + '/.qi.conf'
 script_name = 'qi.py'
@@ -23,7 +34,12 @@ def main():
         if args[0] == 'configure':
             configure()
         elif args[0] in os_list:
-            launch(opts, args[0])
+            try:
+                launch(opts, args[0])
+            except NoCredentialsError:
+                suggest_credentials()
+            except:
+                troubleshoot()
         elif args[0] == 'help':
             usage()
         else:
@@ -113,7 +129,6 @@ def get_instance_properties(opts, stack_name):
     saved_conf['ami'] = saved_conf['ami-'+stack_name]
     if not 'bootstrap' in saved_conf:
         saved_conf['bootstrap'] = ''
-    print(saved_conf)
     return saved_conf
 
 
@@ -137,14 +152,14 @@ def launch(opts, stack_name):
                 get_instance_detail(get_instance_id(stack_name, region), stack_name, prop['key'], prop['user'], region)
                 break
             elif status == 'CREATE_FAILED' or 'ROLLBACK' in status:
-                print('Failed to create instance \'%s\'.' % stack_name)
+                print('Failed to create instance \'%s\'. Review error in CloudFormation console.' % stack_name)
                 break
             sleep(5)
 
 
 def create_stack(stack_name, template, region):
-    cf = boto3.client('cloudformation', region_name=region)
     try:
+        cf = boto3.client('cloudformation', region_name=region)
         response = cf.create_stack(StackName=stack_name, TemplateBody=template)
     except:
         return 'STACK_ALREADY_EXISTS'
@@ -155,19 +170,19 @@ def create_stack(stack_name, template, region):
 
 
 def delete_stack(stack_name, region):
-    cf = boto3.client('cloudformation', region_name=region)
     try:
+        cf = boto3.client('cloudformation', region_name=region)
         print('Terminating %s...' % stack_name)
         response = cf.delete_stack(StackName=stack_name)
     except:
-        print("Failed to terminate %s." % stack_name)
+        print('Failed to terminate %s. Review error in CloudFormation console.' % stack_name)
         return response
     return response
 
 
 def get_stack_state(stack_name, region):
-    cf = boto3.resource('cloudformation', region_name=region)
     try:
+        cf = boto3.resource('cloudformation', region_name=region)
         stack = cf.Stack(stack_name)
     except:
         print('Failed to get stack state.')
@@ -185,8 +200,8 @@ def get_instance_id(stack_name, region):
 
 
 def get_instance_ip(instance_id, region):
-    ec2 = boto3.resource('ec2', region_name=region)
     try:
+        ec2 = boto3.resource('ec2', region_name=region)
         instance = ec2.Instance(instance_id)
     except:
         print("Failed to get instance ip address.")
@@ -200,9 +215,8 @@ def get_instance_detail(instance_id, stack_name, key, username, region):
     print('%s -> %s\n' % (instance_id, instance_ip))
     if 'windows' in stack_name:
         print('RDP to the instance by decrypting Administrator password in management console.\n')
-        print('Paste the following command into Start -> Run:')
-        #TODO: add mstsc correct command below
-        print('mstsc /p...\n')
+        print('Paste the following command in Start -> Run:')
+        print('mstsc /v %s:3389\n' % instance_ip)
     else:
         print('SSH into the instance using command:')
         print('ssh -i ~/.ssh/%s.pem %s@%s\n' % (key, username, instance_ip))
@@ -261,13 +275,15 @@ def get_template(prop, stack_name):
     return template
 
 
-def detect_aws_credentials():
-    #TODO: add code here
-    return
+def suggest_credentials():
+    print('AWS credentials not found. You can create the credential file in ~/.aws/credentials')
+    print('Follow http://boto3.readthedocs.org/en/latest/guide/quickstart.html#configuration for details.')
 
-def detect_boto3():
-    #TODO: add code here
-    return
+
+def troubleshoot():
+    print('An error occurred while launching instance. Ensure you have entered correct settings during configuration.')
+    print('Run \'%s configure\' to reconfigure or specify correct options as parameters.' % script_name)
+
 
 if __name__ == "__main__":
     main()
