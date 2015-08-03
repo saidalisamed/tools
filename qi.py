@@ -37,7 +37,7 @@ def main():
             try:
                 launch(opts, args[0])
             except NoCredentialsError:
-                suggest_credentials()
+                advise_credentials()
             except:
                 troubleshoot()
         elif args[0] == 'help':
@@ -73,6 +73,7 @@ Examples:
 
 
 def configure():
+    #TODO: add auto ami retrieve feature here
     prompts = [
         {'question':'Specify AWS region: ', 'id':'region'},
         {'question':'Default instance type: ', 'id':'type'},
@@ -223,59 +224,42 @@ def get_instance_detail(instance_id, stack_name, key, username, region):
 
 
 def get_template(prop, stack_name):
-    template = """
-{
-  "AWSTemplateFormatVersion" : "2010-09-09",
-  "Description" : "Launched using quick instance script.",
-  "Resources" : {
-    "InstanceSecurityGroup" : {
-      "Type" : "AWS::EC2::SecurityGroup",
-      "Properties" : {
-        "GroupDescription" : "Enable required inbound ports",
-        "SecurityGroupIngress" : [
-            { "IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0" },
-            { "IpProtocol" : "tcp", "FromPort" : "3389", "ToPort" : "3389", "CidrIp" : "0.0.0.0/0" },
-            { "IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0" },
-            { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0" }
-        ]
-      }
-    },
-    "Ec2Instance" : {
-      "Type" : "AWS::EC2::Instance",
-      "Properties" : {
-          "BlockDeviceMappings" : [
-               {
-                  "DeviceName" : "%s",
-                  "Ebs" : {
-                     "VolumeSize" : %s,
-                     "VolumeType" : "gp2"
-                  }
-               }
-            ],
-          "ImageId" : "%s",
-          "InstanceType" : "%s",
-          "KeyName" : "%s",
-          "SecurityGroupIds" : [ {"Ref" : "InstanceSecurityGroup"} ],
-          "Tags" : [ {"Key" : "Name", "Value" : "%s"} ],
-          "UserData" : {"Fn::Base64" : "#!/bin/bash\\n%s"},
-          "IamInstanceProfile" : "%s"
-      }
-    }
-  },
-  "Outputs" : {
-    "InstanceId" : {
-      "Value" : { "Ref" : "Ec2Instance" },
-      "Description" : "Instance Id of newly created instance"
-    }
-  }
-}
-""" % (prop['device'], prop['volume'], prop['ami'], prop['type'], prop['key'],
-       stack_name, prop['bootstrap'], prop['role'])
-    #/TODO: add native json instead
-    return template
+    security_group = {}
+    security_group['Type'] = 'AWS::EC2::SecurityGroup'
+    security_group['Properties'] = {}
+    security_group['Properties']['GroupDescription'] = 'Enable required inbound ports.'
+    ingress_rules = []
+    login_port = '3389' if 'windows' in stack_name else '22'
+    ingress_rules.append({"IpProtocol":"tcp", "FromPort":login_port, "ToPort":login_port, "CidrIp":"0.0.0.0/0"})
+    ingress_rules.append({"IpProtocol":"tcp", "FromPort":"80", "ToPort":"80", "CidrIp":"0.0.0.0/0"})
+    ingress_rules.append({"IpProtocol":"tcp", "FromPort":"443", "ToPort":"443", "CidrIp":"0.0.0.0/0"})
+    security_group['Properties']['SecurityGroupIngress'] = ingress_rules
+    ec2_instance = {}
+    ec2_instance['Type'] = 'AWS::EC2::Instance'
+    ec2_instance['Properties'] = {}
+    ec2_instance['Properties']['ImageId'] = prop['ami']
+    ec2_instance['Properties']['InstanceType'] = prop['type']
+    ec2_instance['Properties']['KeyName'] = prop['key']
+    ec2_instance['Properties']['IamInstanceProfile'] = prop['role']
+    ec2_instance['Properties']['SecurityGroupIds'] = [{'Ref':'InstanceSecurityGroup'}]
+    ec2_instance['Properties']['Tags'] = [{'Key':'Name', 'Value':prop['key']}]
+    ec2_instance['Properties']['UserData'] = {'Fn::Base64':'#!/bin/bash\n'+prop['bootstrap']}
+    resources = {}
+    resources['InstanceSecurityGroup'] = security_group
+    resources['Ec2Instance'] = ec2_instance
+    outputs = {}
+    outputs['InstanceId'] = {}
+    outputs['InstanceId']['Value'] = {'Ref' : 'Ec2Instance'}
+    outputs['InstanceId']['Description'] = 'Instance Id of newly created instance.'
+    template = {}
+    template['AWSTemplateFormatVersion'] = '2010-09-09'
+    template['Description'] = 'Launched using quick instance script'
+    template['Resources'] = resources
+    template['Outputs'] = outputs
+    return json.dumps(template)
 
 
-def suggest_credentials():
+def advise_credentials():
     print('AWS credentials not found. You can create the credential file in ~/.aws/credentials')
     print('Follow http://boto3.readthedocs.org/en/latest/guide/quickstart.html#configuration for details.')
 
