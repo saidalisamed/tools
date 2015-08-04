@@ -92,10 +92,20 @@ def configure():
     ]
     config = {}
     for prompt in prompts:
+        prompt_index = prompts.index(prompt)
+        if prompt_index == 0: display_list(get_regions(), 'RegionName')
+        elif prompt_index == 2: display_list(get_roles(), 'RoleName')
+        elif prompt_index == 3 or prompt_index == 4: display_list(get_key_pairs(config['region']), 'KeyName')
         while True:
             response = raw_input(prompt['question'])
             if response.strip(): break
-        config[prompt['id']] = response.strip()
+        if is_number(response):
+            if prompt_index == 0: config[prompt['id']] = get_regions()[int(response) - 1]['RegionName']
+            elif prompt_index == 2: config[prompt['id']] = get_roles()[int(response) - 1]['RoleName']
+            elif prompt_index == 3: config[prompt['id']] = get_key_pairs(config['region'])[int(response) - 1]['KeyName']
+            elif prompt_index == 4: config[prompt['id']] = get_key_pairs(config['region'])[int(response) - 1]['KeyName']
+        else:
+            config[prompt['id']] = response.strip()
     json.dump(config, open(conf_file, 'w'))
 
 
@@ -270,6 +280,51 @@ def troubleshoot():
     print('An error occurred while launching instance. ' +
           'Please ensure you have entered correct settings during configuration.')
     print('Run \'./%s configure\' to reconfigure or specify correct options as parameters.' % script_name)
+
+
+def get_regions():
+    try:
+        client = boto3.client('ec2')
+        regions = client.describe_regions()
+        return regions['Regions']
+    except:
+        return
+
+
+def get_roles():
+    try:
+        iam = boto3.client('iam')
+        roles = iam.list_roles()
+        return roles['Roles']
+    except:
+        return
+
+
+def get_key_pairs(region):
+    try:
+        client = boto3.client('ec2', region_name=region)
+        keys = client.describe_key_pairs()
+        return keys['KeyPairs']
+    except:
+        return
+
+
+def get_images():
+    pass
+
+
+def display_list(items, key):
+    if type(items) is not list: return
+    for item in items:
+        print('%i. %s' % (items.index(item) + 1, item[key]))
+
+
+def is_number(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 
 if __name__ == "__main__":
