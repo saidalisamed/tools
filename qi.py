@@ -101,7 +101,7 @@ def load_conf():
     try:
         saved_conf = json.load(open(conf_file))
     except:
-        print('Quick instance not configured. Please run \'%s configure\'.' % script_name)
+        print('Quick instance not configured. Please run \'./%s configure\'.' % script_name)
         sys.exit(2)
     return saved_conf
 
@@ -176,7 +176,7 @@ def delete_stack(stack_name, region):
         print('Terminating %s...' % stack_name)
         response = cf.delete_stack(StackName=stack_name)
     except:
-        print('Failed to terminate %s. Review error in CloudFormation console.' % stack_name)
+        print('Failed to terminate %s. Please review error in CloudFormation console.' % stack_name)
         return response
     return response
 
@@ -266,7 +266,7 @@ def advise_credentials():
 
 def troubleshoot():
     print('An error occurred while launching instance. Ensure you have entered correct settings during configuration.')
-    print('Run \'%s configure\' to reconfigure or specify correct options as parameters.' % script_name)
+    print('Run \'./%s configure\' to reconfigure or specify correct options as parameters.' % script_name)
 
 
 if __name__ == "__main__":
