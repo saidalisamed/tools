@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# Launches and terminates AWS ec2 instances quickly using CloudFormation.
-# Date: 01 August 2015
-# Author: Said Ali Samed
+__version__ = '1.0'
+__date__ = '01 August 2015'
+__author__ = 'Said Ali Samed'
 
 import getopt
 import sys
@@ -14,11 +14,11 @@ try:
     import boto3
     from botocore.exceptions import NoCredentialsError
 except:
-    print('Module \'boto3\' missing. Install by running \'sudo pip install boto3\'')
-    print('If you don\'t have pip, please install from https://pip.pypa.io/en/latest/installing.html')
+    print('Python module \'boto3\' missing. Install by running \'sudo pip install boto3\'')
+    print('If pip is not installed, please install from https://pip.pypa.io/en/latest/installing.html')
     exit(2)
 
-conf_file = expanduser("~") + '/.qi.conf'
+conf_file = expanduser('~') + '/.qi.conf'
 script_name = 'qi.py'
 os_list = tuple('amazon-linux nat-instance ubuntu redhat-linux windows-2012 windows-2008'.split())
 
@@ -50,6 +50,8 @@ def main():
 
 def usage():
     print("""
+Description: Launches, deploys application and terminates AWS ec2 instances quickly using CloudFormation.
+
 Usage: ./%s [os|help|configure] [--region|--type|--role|--key|--volume|--ami|--bootstrap]
 
   os          : amazon-linux | nat-instance | redhat-linux | ubuntu | windows-2012 | windows-2008
@@ -61,11 +63,11 @@ Usage: ./%s [os|help|configure] [--region|--type|--role|--key|--volume|--ami|--b
   --role      : ec2 instance role name
   --key       : ssh key name
   --volume    : ec2 instance root volume size in GB
-  --ami       : ec2 instance ami id for the given selected AWS region
+  --ami       : ec2 instance ami id for the specified AWS region
   --bootstrap : any shell command to configure instance at boot
 
 Examples:
-  ./%s amazon-linux                              : Launches an Amazon Linux ec2 instance
+  ./%s amazon-linux                              : Launch an Amazon Linux ec2 instance
   ./%s configure                                 : Configure qi
   ./%s ubuntu --bootstrap "<shell commands>"     : Bootstrap instance with shell commands
 
@@ -109,13 +111,13 @@ def load_conf():
 def get_instance_properties(opts, stack_name):
     saved_conf = load_conf()
     for opt in opts:
-        # add/replace saved conf with user supplied options
+        # Add/replace saved conf with user supplied options
         if opt[0][2:] == 'bootstrap':
             saved_conf[opt[0][2:]] = opt[1]
         if opt[0][2:] in saved_conf:
             saved_conf[opt[0][2:]] = opt[1]
             if opt[0][2:] == 'key': saved_conf['key-windows'] = opt[1]
-    # configure dictionary based on stack type
+    # Configure dictionary based on stack type
     if stack_name in ['amazon-linux', 'nat-instance']:
         saved_conf['device'] = '/dev/xvda'
     else:
@@ -153,7 +155,7 @@ def launch(opts, stack_name):
                 get_instance_detail(get_instance_id(stack_name, region), stack_name, prop['key'], prop['user'], region)
                 break
             elif status == 'CREATE_FAILED' or 'ROLLBACK' in status:
-                print('Failed to create instance \'%s\'. Review error in CloudFormation console.' % stack_name)
+                print('Failed to create instance \'%s\'. Please review error in CloudFormation console.' % stack_name)
                 break
             sleep(5)
 
