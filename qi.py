@@ -14,8 +14,8 @@ try:
     import boto3
     from botocore.exceptions import NoCredentialsError
 except:
-    print('Module \'boto3\' missing. Install by running \'pip install boto3\'')
-    print('If you don\'t have pip, install it from https://pip.pypa.io/en/latest/installing.html')
+    print('Module \'boto3\' missing. Install by running \'sudo pip install boto3\'')
+    print('If you don\'t have pip, please install from https://pip.pypa.io/en/latest/installing.html')
     exit(2)
 
 conf_file = expanduser("~") + '/.qi.conf'
@@ -73,20 +73,20 @@ Examples:
 
 
 def configure():
-    #TODO: add auto ami retrieve feature here
+    # TODO: add auto ami retrieve feature here
     prompts = [
-        {'question':'Specify AWS region: ', 'id':'region'},
-        {'question':'Default instance type: ', 'id':'type'},
-        {'question':'Instance profile name: ', 'id':'role'},
-        {'question':'SSH key name for Linux instances: ', 'id':'key'},
-        {'question':'SSH key name for Windows instances: ', 'id':'key-windows'},
-        {'question':'Default root volume size in GB: ', 'id':'volume'},
-        {'question':'AMI ID for Amazon Linux: ', 'id':'ami-amazon-linux'},
-        {'question':'AMI ID for NAT instance: ', 'id':'ami-nat-instance'},
-        {'question':'AMI ID for Ubuntu: ', 'id':'ami-ubuntu'},
-        {'question':'AMI ID for Redhat Linux: ', 'id':'ami-redhat-linux'},
-        {'question':'AMI ID for Windows 2012: ', 'id':'ami-windows-2012'},
-        {'question':'AMI ID for Windows 2008: ', 'id':'ami-windows-2008'}
+        {'question': 'Specify AWS region: ', 'id': 'region'},
+        {'question': 'Default instance type: ', 'id': 'type'},
+        {'question': 'Instance profile name: ', 'id': 'role'},
+        {'question': 'SSH key name for Linux instances: ', 'id': 'key'},
+        {'question': 'SSH key name for Windows instances: ', 'id': 'key-windows'},
+        {'question': 'Default root volume size in GB: ', 'id': 'volume'},
+        {'question': 'AMI ID for Amazon Linux: ', 'id': 'ami-amazon-linux'},
+        {'question': 'AMI ID for NAT instance: ', 'id': 'ami-nat-instance'},
+        {'question': 'AMI ID for Ubuntu: ', 'id': 'ami-ubuntu'},
+        {'question': 'AMI ID for Redhat Linux: ', 'id': 'ami-redhat-linux'},
+        {'question': 'AMI ID for Windows 2012: ', 'id': 'ami-windows-2012'},
+        {'question': 'AMI ID for Windows 2008: ', 'id': 'ami-windows-2008'}
     ]
     config = {}
     for prompt in prompts:
@@ -127,7 +127,7 @@ def get_instance_properties(opts, stack_name):
         saved_conf['user'] = 'ubuntu'
     else:
         saved_conf['user'] = 'ec2-user'
-    saved_conf['ami'] = saved_conf['ami-'+stack_name]
+    saved_conf['ami'] = saved_conf['ami-' + stack_name]
     if not 'bootstrap' in saved_conf:
         saved_conf['bootstrap'] = ''
     return saved_conf
@@ -143,7 +143,7 @@ def launch(opts, stack_name):
         if status == 'CREATE_COMPLETE':
             get_instance_detail(get_instance_id(stack_name, region), stack_name, prop['key'], prop['user'], region)
         prompt = raw_input('Instance \'%s\' already exists. Would you like to terminate it? ' % stack_name)
-        if prompt in ['Y','y']:
+        if prompt in ['Y', 'y']:
             delete_stack(stack_name, region)
     elif 'arn:aws:cloudformation' in output:
         while True:
@@ -230,9 +230,9 @@ def get_template(prop, stack_name):
     security_group['Properties']['GroupDescription'] = 'Enable required inbound ports.'
     ingress_rules = []
     login_port = '3389' if 'windows' in stack_name else '22'
-    ingress_rules.append({"IpProtocol":"tcp", "FromPort":login_port, "ToPort":login_port, "CidrIp":"0.0.0.0/0"})
-    ingress_rules.append({"IpProtocol":"tcp", "FromPort":"80", "ToPort":"80", "CidrIp":"0.0.0.0/0"})
-    ingress_rules.append({"IpProtocol":"tcp", "FromPort":"443", "ToPort":"443", "CidrIp":"0.0.0.0/0"})
+    ingress_rules.append({"IpProtocol": "tcp", "FromPort": login_port, "ToPort": login_port, "CidrIp": "0.0.0.0/0"})
+    ingress_rules.append({"IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp": "0.0.0.0/0"})
+    ingress_rules.append({"IpProtocol": "tcp", "FromPort": "443", "ToPort": "443", "CidrIp": "0.0.0.0/0"})
     security_group['Properties']['SecurityGroupIngress'] = ingress_rules
     ec2_instance = {}
     ec2_instance['Type'] = 'AWS::EC2::Instance'
@@ -241,15 +241,15 @@ def get_template(prop, stack_name):
     ec2_instance['Properties']['InstanceType'] = prop['type']
     ec2_instance['Properties']['KeyName'] = prop['key']
     ec2_instance['Properties']['IamInstanceProfile'] = prop['role']
-    ec2_instance['Properties']['SecurityGroupIds'] = [{'Ref':'InstanceSecurityGroup'}]
-    ec2_instance['Properties']['Tags'] = [{'Key':'Name', 'Value':prop['key']}]
-    ec2_instance['Properties']['UserData'] = {'Fn::Base64':'#!/bin/bash\n'+prop['bootstrap']}
+    ec2_instance['Properties']['SecurityGroupIds'] = [{'Ref': 'InstanceSecurityGroup'}]
+    ec2_instance['Properties']['Tags'] = [{'Key': 'Name', 'Value': prop['key']}]
+    ec2_instance['Properties']['UserData'] = {'Fn::Base64': '#!/bin/bash\n' + prop['bootstrap']}
     resources = {}
     resources['InstanceSecurityGroup'] = security_group
     resources['Ec2Instance'] = ec2_instance
     outputs = {}
     outputs['InstanceId'] = {}
-    outputs['InstanceId']['Value'] = {'Ref' : 'Ec2Instance'}
+    outputs['InstanceId']['Value'] = {'Ref': 'Ec2Instance'}
     outputs['InstanceId']['Description'] = 'Instance Id of newly created instance.'
     template = {}
     template['AWSTemplateFormatVersion'] = '2010-09-09'
@@ -265,7 +265,8 @@ def advise_credentials():
 
 
 def troubleshoot():
-    print('An error occurred while launching instance. Ensure you have entered correct settings during configuration.')
+    print('An error occurred while launching instance. ' +
+          'Please ensure you have entered correct settings during configuration.')
     print('Run \'./%s configure\' to reconfigure or specify correct options as parameters.' % script_name)
 
 
