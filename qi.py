@@ -100,9 +100,15 @@ def configure():
         elif prompt_index == 2:
             resource_list = get_roles()
             display_list(resource_list, 'RoleName')
-        elif prompt_index == 3 or prompt_index == 4:
+        elif prompt_index in [3, 4]:
             resource_list = get_key_pairs(config['region'])
             display_list(resource_list, 'KeyName')
+        elif prompt_index in [6, 7]:
+            resource_list = get_images(config['region'], False)
+            display_list(resource_list, 'ImageId', 'CreationDate', 'Description')
+        elif prompt_index in [10, 11]:
+            resource_list = get_images(config['region'], True)
+            display_list(resource_list, 'ImageId', 'CreationDate', 'Description')
         else:
             resource_list = []
         while True:
@@ -115,13 +121,15 @@ def configure():
                     break
         if is_number(response):
             if prompt_index == 0:
-                config[prompt['id']] = get_regions()[int(response)-1]['RegionName']
+                config[prompt['id']] = resource_list[int(response)-1]['RegionName']
             elif prompt_index == 2:
-                config[prompt['id']] = get_roles()[int(response)-1]['RoleName']
-            elif prompt_index == 3:
-                config[prompt['id']] = get_key_pairs(config['region'])[int(response)-1]['KeyName']
-            elif prompt_index == 4:
-                config[prompt['id']] = get_key_pairs(config['region'])[int(response)-1]['KeyName']
+                config[prompt['id']] = resource_list[int(response)-1]['RoleName']
+            elif prompt_index in [3, 4]:
+                config[prompt['id']] = resource_list[int(response)-1]['KeyName']
+            elif prompt_index in [6, 7]:
+                config[prompt['id']] = resource_list[int(response)-1]['ImageId']
+            elif prompt_index in [10, 11]:
+                config[prompt['id']] = resource_list[int(response)-1]['ImageId']
         else:
             config[prompt['id']] = response.strip()
     json.dump(config, open(conf_file, 'w'))
@@ -329,14 +337,31 @@ def get_key_pairs(region):
         return
 
 
-def get_images():
-    pass
+def get_images(region, windows):
+    try:
+        client = boto3.client('ec2', region_name=region)
+        images = client.describe_images(Owners=['amazon'], Filters=[
+                {'Name': 'architecture', 'Values': ['x86_64']},
+                {'Name': 'block-device-mapping.volume-type', 'Values': ['gp2']},
+                {'Name': 'image-type', 'Values': ['machine']},
+                {'Name': 'virtualization-type', 'Values': ['hvm']},
+                {'Name': 'platform', 'Values': ['windows']} if windows else {},
+                ])
+        image_list = []
+        filter_keyword = 'Microsoft Windows Server' if windows else 'Amazon Linux'
+        for image in images['Images']:
+            if 'Description' in image and filter_keyword in image['Description']:
+                image_list.append(image)
+        return image_list
+    except:
+        return
 
 
-def display_list(items, key):
+def display_list(items, key_one, key_two=None, key_three=None):
     if type(items) is not list: return
     for item in items:
-        print('%i. %s' % (items.index(item) + 1, item[key]))
+        print('%i. %s  %s %s' % (items.index(item) + 1, item[key_one], item[key_two] if key_two else '',
+                                 item[key_three] if key_three else ''))
 
 
 def is_number(s):
