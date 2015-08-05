@@ -77,33 +77,51 @@ Examples:
 def configure():
     # TODO: add auto ami retrieve feature here
     prompts = [
-        {'question': 'Specify AWS region: ', 'id': 'region'},
-        {'question': 'Default instance type: ', 'id': 'type'},
-        {'question': 'Instance profile name: ', 'id': 'role'},
-        {'question': 'SSH key name for Linux instances: ', 'id': 'key'},
-        {'question': 'SSH key name for Windows instances: ', 'id': 'key-windows'},
-        {'question': 'Default root volume size in GB: ', 'id': 'volume'},
-        {'question': 'AMI ID for Amazon Linux: ', 'id': 'ami-amazon-linux'},
-        {'question': 'AMI ID for NAT instance: ', 'id': 'ami-nat-instance'},
-        {'question': 'AMI ID for Ubuntu: ', 'id': 'ami-ubuntu'},
-        {'question': 'AMI ID for Redhat Linux: ', 'id': 'ami-redhat-linux'},
-        {'question': 'AMI ID for Windows 2012: ', 'id': 'ami-windows-2012'},
-        {'question': 'AMI ID for Windows 2008: ', 'id': 'ami-windows-2008'}
+        {'question': 'Enter AWS region name or number: ', 'id': 'region', 'fetch': True},
+        {'question': 'Default instance type: ', 'id': 'type', 'fetch': False},
+        {'question': 'Instance profile name or number: ', 'id': 'role', 'fetch': True},
+        {'question': 'SSH key pair name  or number for Linux instances: ', 'id': 'key', 'fetch': True},
+        {'question': 'SSH key pair name or number for Windows instances: ', 'id': 'key-windows', 'fetch': True},
+        {'question': 'Default root volume size in GB: ', 'id': 'volume', 'fetch': False},
+        {'question': 'AMI ID or number for Amazon Linux: ', 'id': 'ami-amazon-linux', 'fetch': True},
+        {'question': 'AMI ID or number for NAT instance: ', 'id': 'ami-nat-instance', 'fetch': True},
+        {'question': 'AMI ID or number for Ubuntu: ', 'id': 'ami-ubuntu', 'fetch': True},
+        {'question': 'AMI ID or number for Redhat Linux: ', 'id': 'ami-redhat-linux', 'fetch': True},
+        {'question': 'AMI ID or number for Windows 2012: ', 'id': 'ami-windows-2012', 'fetch': True},
+        {'question': 'AMI ID or number for Windows 2008: ', 'id': 'ami-windows-2008', 'fetch': True}
     ]
     config = {}
     for prompt in prompts:
         prompt_index = prompts.index(prompt)
-        if prompt_index == 0: display_list(get_regions(), 'RegionName')
-        elif prompt_index == 2: display_list(get_roles(), 'RoleName')
-        elif prompt_index == 3 or prompt_index == 4: display_list(get_key_pairs(config['region']), 'KeyName')
+        resource_list = []
+        if prompt_index == 0:
+            resource_list = get_regions()
+            display_list(resource_list, 'RegionName')
+        elif prompt_index == 2:
+            resource_list = get_roles()
+            display_list(resource_list, 'RoleName')
+        elif prompt_index == 3 or prompt_index == 4:
+            resource_list = get_key_pairs(config['region'])
+            display_list(resource_list, 'KeyName')
+        else:
+            resource_list = []
         while True:
             response = raw_input(prompt['question'])
-            if response.strip(): break
+            if response.strip():
+                if is_number(response) and prompt['fetch']:
+                    if int(response)-1 >= 0 and int(response)-1 < len(resource_list):
+                        break
+                else:
+                    break
         if is_number(response):
-            if prompt_index == 0: config[prompt['id']] = get_regions()[int(response) - 1]['RegionName']
-            elif prompt_index == 2: config[prompt['id']] = get_roles()[int(response) - 1]['RoleName']
-            elif prompt_index == 3: config[prompt['id']] = get_key_pairs(config['region'])[int(response) - 1]['KeyName']
-            elif prompt_index == 4: config[prompt['id']] = get_key_pairs(config['region'])[int(response) - 1]['KeyName']
+            if prompt_index == 0:
+                config[prompt['id']] = get_regions()[int(response)-1]['RegionName']
+            elif prompt_index == 2:
+                config[prompt['id']] = get_roles()[int(response)-1]['RoleName']
+            elif prompt_index == 3:
+                config[prompt['id']] = get_key_pairs(config['region'])[int(response)-1]['KeyName']
+            elif prompt_index == 4:
+                config[prompt['id']] = get_key_pairs(config['region'])[int(response)-1]['KeyName']
         else:
             config[prompt['id']] = response.strip()
     json.dump(config, open(conf_file, 'w'))
@@ -161,12 +179,14 @@ def launch(opts, stack_name):
         while True:
             status = get_stack_state(stack_name, region).stack_status
             if status == 'CREATE_COMPLETE':
-                print('Instance created successfully.')
+                print('\nInstance created successfully.')
                 get_instance_detail(get_instance_id(stack_name, region), stack_name, prop['key'], prop['user'], region)
                 break
             elif status == 'CREATE_FAILED' or 'ROLLBACK' in status:
-                print('Failed to create instance \'%s\'. Please review error in CloudFormation console.' % stack_name)
+                print('\nFailed to create instance \'%s\'. Please review error in CloudFormation console.' % stack_name)
                 break
+            sys.stdout.write('.')
+            sys.stdout.flush()
             sleep(5)
 
 
