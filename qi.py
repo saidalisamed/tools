@@ -75,7 +75,6 @@ Examples:
 
 
 def configure():
-    # TODO: add auto ami retrieve feature here
     prompts = [
         {'question': 'Enter AWS region name or number: ', 'id': 'region', 'fetch': True},
         {'question': 'Default instance type: ', 'id': 'type', 'fetch': False},
