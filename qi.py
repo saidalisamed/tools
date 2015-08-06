@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# Launches and terminates AWS ec2 instances quickly using CloudFormation.
-# Date: 01 August 2015
-# Author: Said Ali Samed
+__version__ = '1.0'
+__date__ = '01 August 2015'
+__author__ = 'Said Ali Samed'
 
 import getopt
 import sys
@@ -14,11 +14,11 @@ try:
     import boto3
     from botocore.exceptions import NoCredentialsError
 except:
-    print('Module \'boto3\' missing. Install by running \'pip install boto3\'')
-    print('If you don\'t have pip, install it from https://pip.pypa.io/en/latest/installing.html')
+    print('Python module \'boto3\' missing. Install by running \'sudo pip install boto3\'')
+    print('If pip is not installed, please install from https://pip.pypa.io/en/latest/installing.html')
     exit(2)
 
-conf_file = expanduser("~") + '/.qi.conf'
+conf_file = expanduser('~') + '/.qi.conf'
 script_name = 'qi.py'
 os_list = tuple('amazon-linux nat-instance ubuntu redhat-linux windows-2012 windows-2008'.split())
 
@@ -50,6 +50,8 @@ def main():
 
 def usage():
     print("""
+Description: Launches, deploys application and terminates AWS ec2 instances quickly using CloudFormation.
+
 Usage: ./%s [os|help|configure] [--region|--type|--role|--key|--volume|--ami|--bootstrap]
 
   os          : amazon-linux | nat-instance | redhat-linux | ubuntu | windows-2012 | windows-2008
@@ -61,11 +63,11 @@ Usage: ./%s [os|help|configure] [--region|--type|--role|--key|--volume|--ami|--b
   --role      : ec2 instance role name
   --key       : ssh key name
   --volume    : ec2 instance root volume size in GB
-  --ami       : ec2 instance ami id for the given selected AWS region
+  --ami       : ec2 instance ami id for the specified AWS region
   --bootstrap : any shell command to configure instance at boot
 
 Examples:
-  ./%s amazon-linux                              : Launches an Amazon Linux ec2 instance
+  ./%s amazon-linux                              : Launch an Amazon Linux ec2 instance
   ./%s configure                                 : Configure qi
   ./%s ubuntu --bootstrap "<shell commands>"     : Bootstrap instance with shell commands
 
@@ -73,27 +75,62 @@ Examples:
 
 
 def configure():
-    #TODO: add auto ami retrieve feature here
     prompts = [
-        {'question':'Specify AWS region: ', 'id':'region'},
-        {'question':'Default instance type: ', 'id':'type'},
-        {'question':'Instance profile name: ', 'id':'role'},
-        {'question':'SSH key name for Linux instances: ', 'id':'key'},
-        {'question':'SSH key name for Windows instances: ', 'id':'key-windows'},
-        {'question':'Default root volume size in GB: ', 'id':'volume'},
-        {'question':'AMI ID for Amazon Linux: ', 'id':'ami-amazon-linux'},
-        {'question':'AMI ID for NAT instance: ', 'id':'ami-nat-instance'},
-        {'question':'AMI ID for Ubuntu: ', 'id':'ami-ubuntu'},
-        {'question':'AMI ID for Redhat Linux: ', 'id':'ami-redhat-linux'},
-        {'question':'AMI ID for Windows 2012: ', 'id':'ami-windows-2012'},
-        {'question':'AMI ID for Windows 2008: ', 'id':'ami-windows-2008'}
+        {'question': 'Enter AWS region name or number: ', 'id': 'region', 'fetch': True},
+        {'question': 'Default instance type: ', 'id': 'type', 'fetch': False},
+        {'question': 'Instance profile name or number: ', 'id': 'role', 'fetch': True},
+        {'question': 'SSH key pair name  or number for Linux instances: ', 'id': 'key', 'fetch': True},
+        {'question': 'SSH key pair name or number for Windows instances: ', 'id': 'key-windows', 'fetch': True},
+        {'question': 'Default root volume size in GB: ', 'id': 'volume', 'fetch': False},
+        {'question': 'AMI ID or number for Amazon Linux: ', 'id': 'ami-amazon-linux', 'fetch': True},
+        {'question': 'AMI ID or number for NAT instance: ', 'id': 'ami-nat-instance', 'fetch': True},
+        {'question': 'AMI ID or number for Ubuntu: ', 'id': 'ami-ubuntu', 'fetch': True},
+        {'question': 'AMI ID or number for Redhat Linux: ', 'id': 'ami-redhat-linux', 'fetch': True},
+        {'question': 'AMI ID or number for Windows 2012: ', 'id': 'ami-windows-2012', 'fetch': True},
+        {'question': 'AMI ID or number for Windows 2008: ', 'id': 'ami-windows-2008', 'fetch': True}
     ]
     config = {}
     for prompt in prompts:
+        prompt_index = prompts.index(prompt)
+        resource_list = []
+        if prompt_index == 0:
+            resource_list = get_regions()
+            display_list(resource_list, 'RegionName')
+        elif prompt_index == 2:
+            resource_list = get_roles()
+            display_list(resource_list, 'RoleName')
+        elif prompt_index in [3, 4]:
+            resource_list = get_key_pairs(config['region'])
+            display_list(resource_list, 'KeyName')
+        elif prompt_index in [6, 7]:
+            resource_list = get_images(config['region'], False)
+            display_list(resource_list, 'ImageId', 'CreationDate', 'Description')
+        elif prompt_index in [10, 11]:
+            resource_list = get_images(config['region'], True)
+            display_list(resource_list, 'ImageId', 'CreationDate', 'Description')
+        else:
+            resource_list = []
         while True:
             response = raw_input(prompt['question'])
-            if response.strip(): break
-        config[prompt['id']] = response.strip()
+            if response.strip():
+                if is_number(response) and prompt['fetch']:
+                    if int(response)-1 >= 0 and int(response)-1 < len(resource_list):
+                        break
+                else:
+                    break
+        if is_number(response):
+            if prompt_index == 0:
+                config[prompt['id']] = resource_list[int(response)-1]['RegionName']
+            elif prompt_index == 2:
+                config[prompt['id']] = resource_list[int(response)-1]['RoleName']
+            elif prompt_index in [3, 4]:
+                config[prompt['id']] = resource_list[int(response)-1]['KeyName']
+            elif prompt_index in [6, 7]:
+                config[prompt['id']] = resource_list[int(response)-1]['ImageId']
+            elif prompt_index in [10, 11]:
+                config[prompt['id']] = resource_list[int(response)-1]['ImageId']
+        else:
+            config[prompt['id']] = response.strip()
     json.dump(config, open(conf_file, 'w'))
 
 
@@ -101,7 +138,7 @@ def load_conf():
     try:
         saved_conf = json.load(open(conf_file))
     except:
-        print('Quick instance not configured. Please run \'%s configure\'.' % script_name)
+        print('Quick instance not configured. Please run \'./%s configure\'.' % script_name)
         sys.exit(2)
     return saved_conf
 
@@ -109,13 +146,13 @@ def load_conf():
 def get_instance_properties(opts, stack_name):
     saved_conf = load_conf()
     for opt in opts:
-        # add/replace saved conf with user supplied options
+        # Add/replace saved conf with user supplied options
         if opt[0][2:] == 'bootstrap':
             saved_conf[opt[0][2:]] = opt[1]
         if opt[0][2:] in saved_conf:
             saved_conf[opt[0][2:]] = opt[1]
             if opt[0][2:] == 'key': saved_conf['key-windows'] = opt[1]
-    # configure dictionary based on stack type
+    # Configure dictionary based on stack type
     if stack_name in ['amazon-linux', 'nat-instance']:
         saved_conf['device'] = '/dev/xvda'
     else:
@@ -127,7 +164,7 @@ def get_instance_properties(opts, stack_name):
         saved_conf['user'] = 'ubuntu'
     else:
         saved_conf['user'] = 'ec2-user'
-    saved_conf['ami'] = saved_conf['ami-'+stack_name]
+    saved_conf['ami'] = saved_conf['ami-' + stack_name]
     if not 'bootstrap' in saved_conf:
         saved_conf['bootstrap'] = ''
     return saved_conf
@@ -143,18 +180,20 @@ def launch(opts, stack_name):
         if status == 'CREATE_COMPLETE':
             get_instance_detail(get_instance_id(stack_name, region), stack_name, prop['key'], prop['user'], region)
         prompt = raw_input('Instance \'%s\' already exists. Would you like to terminate it? ' % stack_name)
-        if prompt in ['Y','y']:
+        if prompt in ['Y', 'y']:
             delete_stack(stack_name, region)
     elif 'arn:aws:cloudformation' in output:
         while True:
             status = get_stack_state(stack_name, region).stack_status
             if status == 'CREATE_COMPLETE':
-                print('Instance created successfully.')
+                print('\nInstance created successfully.')
                 get_instance_detail(get_instance_id(stack_name, region), stack_name, prop['key'], prop['user'], region)
                 break
             elif status == 'CREATE_FAILED' or 'ROLLBACK' in status:
-                print('Failed to create instance \'%s\'. Review error in CloudFormation console.' % stack_name)
+                print('\nFailed to create instance \'%s\'. Please review error in CloudFormation console.' % stack_name)
                 break
+            sys.stdout.write('.')
+            sys.stdout.flush()
             sleep(5)
 
 
@@ -176,7 +215,7 @@ def delete_stack(stack_name, region):
         print('Terminating %s...' % stack_name)
         response = cf.delete_stack(StackName=stack_name)
     except:
-        print('Failed to terminate %s. Review error in CloudFormation console.' % stack_name)
+        print('Failed to terminate %s. Please review error in CloudFormation console.' % stack_name)
         return response
     return response
 
@@ -230,9 +269,9 @@ def get_template(prop, stack_name):
     security_group['Properties']['GroupDescription'] = 'Enable required inbound ports.'
     ingress_rules = []
     login_port = '3389' if 'windows' in stack_name else '22'
-    ingress_rules.append({"IpProtocol":"tcp", "FromPort":login_port, "ToPort":login_port, "CidrIp":"0.0.0.0/0"})
-    ingress_rules.append({"IpProtocol":"tcp", "FromPort":"80", "ToPort":"80", "CidrIp":"0.0.0.0/0"})
-    ingress_rules.append({"IpProtocol":"tcp", "FromPort":"443", "ToPort":"443", "CidrIp":"0.0.0.0/0"})
+    ingress_rules.append({"IpProtocol": "tcp", "FromPort": login_port, "ToPort": login_port, "CidrIp": "0.0.0.0/0"})
+    ingress_rules.append({"IpProtocol": "tcp", "FromPort": "80", "ToPort": "80", "CidrIp": "0.0.0.0/0"})
+    ingress_rules.append({"IpProtocol": "tcp", "FromPort": "443", "ToPort": "443", "CidrIp": "0.0.0.0/0"})
     security_group['Properties']['SecurityGroupIngress'] = ingress_rules
     ec2_instance = {}
     ec2_instance['Type'] = 'AWS::EC2::Instance'
@@ -241,15 +280,15 @@ def get_template(prop, stack_name):
     ec2_instance['Properties']['InstanceType'] = prop['type']
     ec2_instance['Properties']['KeyName'] = prop['key']
     ec2_instance['Properties']['IamInstanceProfile'] = prop['role']
-    ec2_instance['Properties']['SecurityGroupIds'] = [{'Ref':'InstanceSecurityGroup'}]
-    ec2_instance['Properties']['Tags'] = [{'Key':'Name', 'Value':prop['key']}]
-    ec2_instance['Properties']['UserData'] = {'Fn::Base64':'#!/bin/bash\n'+prop['bootstrap']}
+    ec2_instance['Properties']['SecurityGroupIds'] = [{'Ref': 'InstanceSecurityGroup'}]
+    ec2_instance['Properties']['Tags'] = [{'Key': 'Name', 'Value': prop['key']}]
+    ec2_instance['Properties']['UserData'] = {'Fn::Base64': '#!/bin/bash\n' + prop['bootstrap']}
     resources = {}
     resources['InstanceSecurityGroup'] = security_group
     resources['Ec2Instance'] = ec2_instance
     outputs = {}
     outputs['InstanceId'] = {}
-    outputs['InstanceId']['Value'] = {'Ref' : 'Ec2Instance'}
+    outputs['InstanceId']['Value'] = {'Ref': 'Ec2Instance'}
     outputs['InstanceId']['Description'] = 'Instance Id of newly created instance.'
     template = {}
     template['AWSTemplateFormatVersion'] = '2010-09-09'
@@ -265,8 +304,71 @@ def advise_credentials():
 
 
 def troubleshoot():
-    print('An error occurred while launching instance. Ensure you have entered correct settings during configuration.')
-    print('Run \'%s configure\' to reconfigure or specify correct options as parameters.' % script_name)
+    print('An error occurred while launching instance. ' +
+          'Please ensure you have entered correct settings during configuration.')
+    print('Run \'./%s configure\' to reconfigure or specify correct options as parameters.' % script_name)
+
+
+def get_regions():
+    try:
+        client = boto3.client('ec2')
+        regions = client.describe_regions()
+        return regions['Regions']
+    except:
+        return
+
+
+def get_roles():
+    try:
+        iam = boto3.client('iam')
+        roles = iam.list_roles()
+        return roles['Roles']
+    except:
+        return
+
+
+def get_key_pairs(region):
+    try:
+        client = boto3.client('ec2', region_name=region)
+        keys = client.describe_key_pairs()
+        return keys['KeyPairs']
+    except:
+        return
+
+
+def get_images(region, windows):
+    try:
+        client = boto3.client('ec2', region_name=region)
+        images = client.describe_images(Owners=['amazon'], Filters=[
+                {'Name': 'architecture', 'Values': ['x86_64']},
+                {'Name': 'block-device-mapping.volume-type', 'Values': ['gp2']},
+                {'Name': 'image-type', 'Values': ['machine']},
+                {'Name': 'virtualization-type', 'Values': ['hvm']},
+                {'Name': 'platform', 'Values': ['windows']} if windows else {},
+                ])
+        image_list = []
+        filter_keyword = 'Microsoft Windows Server' if windows else 'Amazon Linux'
+        for image in images['Images']:
+            if 'Description' in image and filter_keyword in image['Description']:
+                image_list.append(image)
+        return image_list
+    except:
+        return
+
+
+def display_list(items, key_one, key_two=None, key_three=None):
+    if type(items) is not list: return
+    for item in items:
+        print('%i. %s  %s %s' % (items.index(item) + 1, item[key_one], item[key_two] if key_two else '',
+                                 item[key_three] if key_three else ''))
+
+
+def is_number(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
 
 
 if __name__ == "__main__":
