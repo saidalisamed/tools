@@ -9,6 +9,7 @@ import sys
 import json
 from os.path import expanduser
 from time import sleep
+import datetime
 
 try:
     import boto3
@@ -21,6 +22,8 @@ except:
 conf_file = expanduser('~') + '/.qi.conf'
 script_name = 'qi.py'
 os_list = tuple('amazon-linux nat-instance ubuntu redhat-linux windows-2012 windows-2008'.split())
+redhat_account = '309956199498'
+ubuntu_account = '099720109477'
 
 
 def main():
@@ -103,10 +106,16 @@ def configure():
             resource_list = get_key_pairs(config['region'])
             display_list(resource_list, 'KeyName')
         elif prompt_index in [6, 7]:
-            resource_list = get_images(config['region'], False)
+            resource_list = get_images(config['region'], ['amazon'], False)
             display_list(resource_list, 'ImageId', 'CreationDate', 'Description')
+        elif prompt_index in [8]:
+            resource_list = get_images(config['region'], [ubuntu_account], False)
+            display_list(resource_list, 'ImageId', 'CreationDate', 'Name')
+        elif prompt_index in [9]:
+            resource_list = get_images(config['region'], [redhat_account], False)
+            display_list(resource_list, 'ImageId', 'CreationDate', 'Name')
         elif prompt_index in [10, 11]:
-            resource_list = get_images(config['region'], True)
+            resource_list = get_images(config['region'], ['amazon'], True)
             display_list(resource_list, 'ImageId', 'CreationDate', 'Description')
         else:
             resource_list = []
@@ -126,6 +135,10 @@ def configure():
             elif prompt_index in [3, 4]:
                 config[prompt['id']] = resource_list[int(response)-1]['KeyName']
             elif prompt_index in [6, 7]:
+                config[prompt['id']] = resource_list[int(response)-1]['ImageId']
+            elif prompt_index in [8]:
+                config[prompt['id']] = resource_list[int(response)-1]['ImageId']
+            elif prompt_index in [9]:
                 config[prompt['id']] = resource_list[int(response)-1]['ImageId']
             elif prompt_index in [10, 11]:
                 config[prompt['id']] = resource_list[int(response)-1]['ImageId']
@@ -256,7 +269,7 @@ def get_instance_detail(instance_id, stack_name, key, username, region):
     if 'windows' in stack_name:
         print('RDP to the instance by decrypting Administrator password in management console.\n')
         print('Paste the following command in Start -> Run:')
-        print('mstsc /v:%s:3389\n' % instance_ip)
+        print('mstsc /v:%s\n' % instance_ip)
     else:
         print('SSH into the instance using command:')
         print('ssh -i ~/.ssh/%s.pem %s@%s\n' % (key, username, instance_ip))
@@ -336,10 +349,10 @@ def get_key_pairs(region):
         return
 
 
-def get_images(region, windows):
+def get_images(region, owners=[], windows=False):
     try:
         client = boto3.client('ec2', region_name=region)
-        images = client.describe_images(Owners=['amazon'], Filters=[
+        images = client.describe_images(Owners=owners, Filters=[
                 {'Name': 'architecture', 'Values': ['x86_64']},
                 {'Name': 'block-device-mapping.volume-type', 'Values': ['gp2']},
                 {'Name': 'image-type', 'Values': ['machine']},
@@ -349,8 +362,17 @@ def get_images(region, windows):
         image_list = []
         filter_keyword = 'Microsoft Windows Server' if windows else 'Amazon Linux'
         for image in images['Images']:
-            if 'Description' in image and filter_keyword in image['Description']:
+            if 'amazon' in owners:
+                if 'Description' in image and filter_keyword in image['Description']:
+                    if windows and any(keyword not in image['Description'] for keyword in ['English', 'Base']):
+                        continue
+                    if windows: image['Description'] = image['Description'].replace('AMI provided by Amazon', '')
+                    image_list.append(image)
+            elif redhat_account in owners:
                 image_list.append(image)
+            elif ubuntu_account in owners:
+                image_list.append(image)
+        image_list.sort(key=lambda x: datetime.datetime.strptime(x['CreationDate'], '%Y-%m-%dT%H:%M:%S.000Z'))
         return image_list
     except:
         return
