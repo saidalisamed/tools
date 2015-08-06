@@ -217,7 +217,7 @@ def get_instance_detail(instance_id, stack_name, key, username, region):
     if 'windows' in stack_name:
         print('RDP to the instance by decrypting Administrator password in management console.\n')
         print('Paste the following command in Start -> Run:')
-        print('mstsc /v %s:3389\n' % instance_ip)
+        print('mstsc /v:%s:3389\n' % instance_ip)
     else:
         print('SSH into the instance using command:')
         print('ssh -i ~/.ssh/%s.pem %s@%s\n' % (key, username, instance_ip))
