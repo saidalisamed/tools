@@ -1,14 +1,16 @@
 Tools
 =====
+qi.py "Quick Instance" launches, deploys application and terminates AWS ec2 instances quickly using CloudFormation. 
+This is useful when a disposable ec2 instance is required to quickly test or deploy an application on a supported OS.
 
-qi.py "Quick Instance" examples:
-----------------------------------
+Examples:
+--------
 
-Launch Ubuntu instance with Apache Tomcat7 configured:
+Launch Ubuntu ec2 instance with Apache Tomcat7 configured:
 
     ./qi.py ubuntu --bootstrap "wget https://raw.githubusercontent.com/saidalisamed/tools/master/tomcat7_java8_ubuntu14.04_install.sh -O /tmp/install.sh && chmod +x /tmp/install.sh && /tmp/install.sh"
 
-Launch Ubuntu instance with Apache (wsgi) and deploy a sample Python Flask application:
+Launch Ubuntu ec2 instance with Apache (wsgi) and deploy a sample Python Flask application:
 
     ./qi.py ubuntu --bootstrap "wget https://raw.githubusercontent.com/saidalisamed/tools/master/flask_deploy.sh -O /tmp/install.sh && chmod +x /tmp/install.sh && /tmp/install.sh example_app https://github.com/deis/example-python-flask/archive/master.zip"
     
@@ -24,8 +26,29 @@ Launch Ubuntu instance and install/configure SuiteCRM with HHVM and nginx:
 
     ./qi.py ubuntu --bootstrap "wget https://raw.githubusercontent.com/saidalisamed/tools/master/nginx_hhvm_suitecrm_ubuntu14.04_install.sh -O /tmp/install.sh && chmod +x /tmp/install.sh && /tmp/install.sh"
 
+Launch six difference ec2 instances simultaneously:
+    
+    for os in amazon-linux nat-instance ubuntu redhat-linux windows-2008 windows-2012; do ./qi.py $os & done
+
 To terminate, run the same command again:
 
     ./qi.py ubuntu
     ./qi.py amazon-linux
 
+Installation:
+------------
+
+Installation on Linux and Mac OSX:
+
+    curl -o qi.py https://raw.githubusercontent.com/saidalisamed/tools/master/qi.py
+    chmod +x qi.py
+    
+For installation on Windows, simply download [here](https://raw.githubusercontent.com/saidalisamed/tools/master/qi.py)
+
+
+Requirements:
+------------
+- python 2.7 or above
+- boto3 python module
+- python pip required to install boto3 module
+- AWS credentials in ~/.aws/credentials or ec2 instance role with appropriate IAM permissions.
