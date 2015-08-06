@@ -53,8 +53,7 @@ To install boto3 on windows and launching an ec2 instance:
 
 Requirements:
 ------------
-- python 2.7 or above.
-- boto3 python module.
-- python pip required to install boto3 module.
-- AWS credentials in ~/.aws/credentials or ec2 instance role with appropriate IAM permissions.
-- Follow this [guide](http://blogs.aws.amazon.com/security/post/Tx3D6U6WSFGOK2H/A-New-and-Standardized-Way-to-Manage-Credentials-in-the-AWS-SDKs) to set up AWS credentials.
+- Python 2.7 or above.
+- Boto3 python module.
+- Python pip required to install boto3 module.
+- AWS credentials in ~/.aws/credentials or ec2 instance role with appropriate IAM permissions. Follow this [guide](http://blogs.aws.amazon.com/security/post/Tx3D6U6WSFGOK2H/A-New-and-Standardized-Way-to-Manage-Credentials-in-the-AWS-SDKs) to set up AWS credentials.
