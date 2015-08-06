@@ -1,11 +1,14 @@
 Quick Instance
 ==============
-qi.py "Quick Instance" launches, deploys application and terminates AWS ec2 instances quickly using CloudFormation. 
+Quick Instance 'qi.py' quickly launches, deploys application and terminates AWS ec2 instances using CloudFormation. 
 This is useful when a disposable ec2 instance is needed to quickly test or deploy an application on a supported OS.
 
 Examples:
 --------
+Launch a vanilla Amazon Linux ec2 instance without bootstrapping it:
 
+    ./qi.py amazon-linux
+    
 Launch Ubuntu ec2 instance with Apache Tomcat7 configured:
 
     ./qi.py ubuntu --bootstrap "wget https://raw.githubusercontent.com/saidalisamed/tools/master/tomcat7_java8_ubuntu14.04_install.sh -O /tmp/install.sh && chmod +x /tmp/install.sh && /tmp/install.sh"
@@ -30,6 +33,10 @@ Launch six difference ec2 instances simultaneously:
     
     for os in amazon-linux nat-instance ubuntu redhat-linux windows-2008 windows-2012; do ./qi.py $os & done
 
+Launch Ubuntu ec2 instance with a 100GB root volume size by overriding the default configuration:
+    
+    ./qi.py ubuntu --volume 100
+
 To terminate, run the same command again:
 
     ./qi.py ubuntu
@@ -37,7 +44,6 @@ To terminate, run the same command again:
 
 Installation:
 ------------
-
 Installation on Linux and Mac OSX:
 
     curl -o qi.py https://raw.githubusercontent.com/saidalisamed/tools/master/qi.py
@@ -49,6 +55,12 @@ To install boto3 on windows and launching an ec2 instance:
 
     C:\Python27\python.exe -m pip install boto3
     C:\Python27\python.exe qi.py amazon-linux
+    
+Configuration:
+-------------
+Run 'configure' when running for the first time to configure quick instance.
+
+    ./qi.py configure
 
 
 Requirements:
