@@ -281,7 +281,7 @@ def get_template(prop, stack_name):
     ec2_instance['Properties']['KeyName'] = prop['key']
     ec2_instance['Properties']['IamInstanceProfile'] = prop['role']
     ec2_instance['Properties']['SecurityGroupIds'] = [{'Ref': 'InstanceSecurityGroup'}]
-    ec2_instance['Properties']['Tags'] = [{'Key': 'Name', 'Value': prop['key']}]
+    ec2_instance['Properties']['Tags'] = [{'Key': 'Name', 'Value': stack_name}]
     ec2_instance['Properties']['UserData'] = {'Fn::Base64': '#!/bin/bash\n' + prop['bootstrap']}
     resources = {}
     resources['InstanceSecurityGroup'] = security_group
