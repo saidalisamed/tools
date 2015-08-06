@@ -43,12 +43,18 @@ Installation on Linux and Mac OSX:
     curl -o qi.py https://raw.githubusercontent.com/saidalisamed/tools/master/qi.py
     chmod +x qi.py
     
-For installation on Windows, simply download [here](https://raw.githubusercontent.com/saidalisamed/tools/master/qi.py)
+For installation on Windows, save [this](https://raw.githubusercontent.com/saidalisamed/tools/master/qi.py).
+
+To install boto3 on windows and launching an ec2 instance:
+
+    C:\Python27\python.exe -m pip install boto3
+    C:\Python27\python.exe qi.py amazon-linux
 
 
 Requirements:
 ------------
-- python 2.7 or above
-- boto3 python module
-- python pip required to install boto3 module
+- python 2.7 or above.
+- boto3 python module.
+- python pip required to install boto3 module.
 - AWS credentials in ~/.aws/credentials or ec2 instance role with appropriate IAM permissions.
+- Follow this [guide](http://blogs.aws.amazon.com/security/post/Tx3D6U6WSFGOK2H/A-New-and-Standardized-Way-to-Manage-Credentials-in-the-AWS-SDKs) to set up AWS credentials.
