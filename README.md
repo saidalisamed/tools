@@ -1,5 +1,5 @@
-Tools
-=====
+Quick Instance
+==============
 qi.py "Quick Instance" launches, deploys application and terminates AWS ec2 instances quickly using CloudFormation. 
 This is useful when a disposable ec2 instance is required to quickly test or deploy an application on a supported OS.
 
