@@ -120,7 +120,10 @@ def configure():
         else:
             resource_list = []
         while True:
-            response = raw_input(prompt['question'])
+            if sys.version_info[0] < 3:
+                response = raw_input(prompt['question'])
+            else:
+                response = input(prompt['question'])
             if prompt_index in [1, 5]:  # allow blank entry for instance type and volume size
                 break
             if response.strip():
@@ -201,7 +204,10 @@ def launch(opts, stack_name):
         status = get_stack_state(stack_name, region).stack_status
         if status == 'CREATE_COMPLETE':
             get_instance_detail(get_instance_id(stack_name, region), stack_name, prop['key'], prop['user'], region)
-        prompt = raw_input('Instance \'%s\' already exists. Would you like to terminate it? ' % stack_name)
+        if sys.version_info[0] < 3:
+            prompt = raw_input('Instance \'%s\' already exists. Would you like to terminate it? ' % stack_name)
+        else:
+            prompt = input('Instance \'%s\' already exists. Would you like to terminate it? ' % stack_name)
         if prompt in ['Y', 'y']:
             delete_stack(stack_name, region)
     elif 'arn:aws:cloudformation' in output:
