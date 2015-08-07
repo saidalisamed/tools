@@ -80,11 +80,11 @@ Examples:
 def configure():
     prompts = [
         {'question': 'Enter AWS region name or number: ', 'id': 'region', 'fetch': True},
-        {'question': 'Default instance type: ', 'id': 'type', 'fetch': False},
+        {'question': 'Default instance type [t2.micro]: ', 'id': 'type', 'fetch': False},
         {'question': 'Instance profile name or number: ', 'id': 'role', 'fetch': True},
         {'question': 'SSH key pair name  or number for Linux instances: ', 'id': 'key', 'fetch': True},
         {'question': 'SSH key pair name or number for Windows instances: ', 'id': 'key-windows', 'fetch': True},
-        {'question': 'Default root volume size in GB: ', 'id': 'volume', 'fetch': False},
+        {'question': 'Default root volume size in GB [30]: ', 'id': 'volume', 'fetch': False},
         {'question': 'AMI ID or number for Amazon Linux: ', 'id': 'ami-amazon-linux', 'fetch': True},
         {'question': 'AMI ID or number for NAT instance: ', 'id': 'ami-nat-instance', 'fetch': True},
         {'question': 'AMI ID or number for Ubuntu: ', 'id': 'ami-ubuntu', 'fetch': True},
@@ -121,6 +121,8 @@ def configure():
             resource_list = []
         while True:
             response = raw_input(prompt['question'])
+            if prompt_index in [1, 5]:  # allow blank entry for instance type and volume size
+                break
             if response.strip():
                 if is_number(response) and prompt['fetch']:
                     if int(response)-1 >= 0 and int(response)-1 < len(resource_list):
@@ -134,6 +136,8 @@ def configure():
                 config[prompt['id']] = resource_list[int(response)-1]['RoleName']
             elif prompt_index in [3, 4]:
                 config[prompt['id']] = resource_list[int(response)-1]['KeyName']
+            elif prompt_index == 5:
+                config[prompt['id']] = response.strip()
             elif prompt_index in [6, 7]:
                 config[prompt['id']] = resource_list[int(response)-1]['ImageId']
             elif prompt_index in [8]:
@@ -143,7 +147,12 @@ def configure():
             elif prompt_index in [10, 11]:
                 config[prompt['id']] = resource_list[int(response)-1]['ImageId']
         else:
-            config[prompt['id']] = response.strip()
+            if prompt_index == 1 and not response.rstrip():
+                config[prompt['id']] = 't2.micro'  # default to t2.micro if blank entry
+            elif prompt_index == 5 and not response.rstrip():
+                config[prompt['id']] = 30  # default to 30GB for volume if left blank
+            else:
+                config[prompt['id']] = response.strip()
     json.dump(config, open(conf_file, 'w'))
 
 
@@ -203,7 +212,8 @@ def launch(opts, stack_name):
                 get_instance_detail(get_instance_id(stack_name, region), stack_name, prop['key'], prop['user'], region)
                 break
             elif status == 'CREATE_FAILED' or 'ROLLBACK' in status:
-                print('\nFailed to create instance \'%s\'. Please review error in CloudFormation console.' % stack_name)
+                print('\nFailed to create instance \'%s\'.' % stack_name)
+                get_stack_events(stack_name, region)
                 break
             sys.stdout.write('.')
             sys.stdout.flush()
@@ -228,7 +238,8 @@ def delete_stack(stack_name, region):
         print('Terminating %s...' % stack_name)
         response = cf.delete_stack(StackName=stack_name)
     except:
-        print('Failed to terminate %s. Please review error in CloudFormation console.' % stack_name)
+        print('Failed to terminate %s.' % stack_name)
+        get_stack_events(stack_name, region)
         return response
     return response
 
@@ -241,6 +252,18 @@ def get_stack_state(stack_name, region):
         print('Failed to get stack state.')
         return
     return stack
+
+
+def get_stack_events(stack_name, region):
+    try:
+        cf = boto3.resource('cloudformation', region_name=region)
+        stack = cf.Stack(stack_name)
+        for event in stack.events.all():
+            if event.resource_status in ['CREATE_FAILED', 'ROLLBACK_IN_PROGRESS'] and event.resource_status_reason:
+                print(event.resource_status_reason)
+        print('For more detail please review error in CloudFormation console.')
+    except:
+        print('Failed to get stack events.')
 
 
 def get_instance_id(stack_name, region):
@@ -289,6 +312,9 @@ def get_template(prop, stack_name):
     ec2_instance = {}
     ec2_instance['Type'] = 'AWS::EC2::Instance'
     ec2_instance['Properties'] = {}
+    ec2_instance['Properties']['BlockDeviceMappings'] = [
+        {'DeviceName': prop['device'],'Ebs': {'VolumeSize': prop['volume'], 'VolumeType': 'gp2'}}
+    ]
     ec2_instance['Properties']['ImageId'] = prop['ami']
     ec2_instance['Properties']['InstanceType'] = prop['type']
     ec2_instance['Properties']['KeyName'] = prop['key']
@@ -317,7 +343,7 @@ def advise_credentials():
 
 
 def troubleshoot():
-    print('An error occurred while launching instance. ' +
+    print('\nAn error occurred while launching instance. ' +
           'Please ensure you have entered correct settings during configuration.')
     print('Run \'./%s configure\' to reconfigure or specify correct options as parameters.' % script_name)
 
