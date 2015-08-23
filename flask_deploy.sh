@@ -38,8 +38,8 @@ function configure_apache {
 	cat << EOF > /etc/apache2/sites-available/000-$app_name.conf
 <VirtualHost *:80>
         ServerAdmin webmaster@localhost
-        ErrorLog ${APACHE_LOG_DIR}/error.log
-        CustomLog ${APACHE_LOG_DIR}/access.log combined
+        ErrorLog /var/log/apache2/error.log
+        CustomLog /var/log/apache2/access.log combined
 
         # python wsgi configuration
         WSGIDaemonProcess $app_name user=appuser group=appuser threads=50
