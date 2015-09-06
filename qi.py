@@ -194,7 +194,6 @@ def get_instance_properties(opts, stack_name):
     saved_conf['ami'] = saved_conf['ami-' + stack_name]
     if not 'bootstrap' in saved_conf:
         saved_conf['bootstrap'] = ''
-    print(saved_conf)
     return saved_conf
 
 
