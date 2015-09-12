@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Creates a flask project skeleton that is modular and we suited for larger projects.
+# Creates a flask project skeleton that is modular and well suited for larger projects.
 # Also includes SQLAlchemy and flask restful API samples in blueprints.
 
 app_name=$1
