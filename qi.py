@@ -174,6 +174,8 @@ def get_instance_properties(opts, stack_name):
         # Add/replace saved conf with user supplied options
         if opt[0][2:] == 'bootstrap':
             saved_conf[opt[0][2:]] = opt[1]
+        if opt[0][2:] == 'ami':
+            saved_conf['ami-' + stack_name] = opt[1]
         if opt[0][2:] in saved_conf:
             saved_conf[opt[0][2:]] = opt[1]
             if opt[0][2:] == 'key': saved_conf['key-windows'] = opt[1]
