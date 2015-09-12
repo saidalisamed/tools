@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Creates a flask project skeleton that is modular and we suited for larger projects.
+# Also includes SQLAlchemy and flask restful API samples in blueprints.
+
 app_name=$1
 if [ -f $app_name ] ; then
     echo "Project name not specified."
