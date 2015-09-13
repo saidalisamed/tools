@@ -59,7 +59,7 @@ db.init_app(app)
 
 echo "# configuration
 DEBUG = False
-SECRET_KEY = 'Some good random code here'
+SECRET_KEY = 'Run in interpreter for strong secret: import os;os.urandom(24)'
 SQLALCHEMY_DATABASE_URI = 'mysql://username:password@localhost/database_name'
 " > $app_root/configuration.py
 
@@ -78,7 +78,6 @@ class Test(db.Model):
         self.id = test_id
         self.name = name
         self.value = value
-
 " > $app_root/db_models.py
 
 echo "from flask import render_template, flash
@@ -101,14 +100,12 @@ def home():
 def page_not_found(e):
     flash('Sorry, nothing at this URL.')
     return render_template('home.html'), 404, e
-
 " > $app_root/views.py
 
 echo "from $app_name import app
 
 if __name__ == '__main__':
     app.run(debug=True)
-
 " > $app_name/runserver.py
 
 api_root=$app_root/api
@@ -134,6 +131,10 @@ class Version(Resource):
 
 api.add_resource(Version, '/version')
 
+
+@api_blueprint.route('/')
+def home():
+    return 'API home'
 " > $api_root/views.py
 
 
