@@ -1,0 +1,6 @@
+virtualenv flask
+flask/bin/pip install flask
+flask/bin/pip install flask-sqlalchemy
+flask/bin/pip install flask-restful
+flask/bin/pip install mysql-python
+flask/bin/pip install flup
