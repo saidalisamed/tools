@@ -89,11 +89,34 @@ $apache_install_commands
 sudo a2enmod rewrite
 sudo a2enmod fcgid
 
-- AllowOverride All for directory /var/www/ in apache config
+# Apache virtualhost configuration
+
+<VirtualHost *>
+    #ServerName example.com
+    #ServerAlias www.example.com
+    ServerAdmin webmaster@localhost
+    ErrorLog /var/log/apache2/error.log
+    CustomLog /var/log/apache2/access.log combined
+    DocumentRoot /var/www/html/$project
+
+    <Directory /var/www/html/$project>
+        Order deny,allow
+        Allow from all
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
 
 $flask_install_commands" > $project/fcgi_deployment_readme.txt
 
-echo "from app import app as application" > $project/run.wsgi
+echo "activate_this = '/var/www/html/$project/flask/bin/activate_this.py'
+execfile(activate_this, dict(__file__=activate_this))
+
+import sys
+sys.path.append('/var/www/html/$project')
+
+from run import app as application" > $project/run.wsgi
 
 echo "
 $apache_install_commands
