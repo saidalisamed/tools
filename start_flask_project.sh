@@ -9,13 +9,15 @@ if [ -f $project ] ; then
     exit 1
 fi
 
-install_commands="
-- Run following commands to set up flask virtualenv if development workstation is non-linux.
+flask_install_commands="
+- Run following commands to set up flask virtualenv if development workstation is non-linux. (Ubuntu)
 
+# Prepare for flask virtualenv
 sudo apt-get install python-virtualenv
 sudo apt-get install libmysqld-dev
 sudo apt-get install python-dev
 
+# Install flask in virtualenv
 cd /var/www/html/
 virtualenv $project/flask
 $project/flask/bin/pip install flask
@@ -23,6 +25,17 @@ $project/flask/bin/pip install flask-sqlalchemy
 $project/flask/bin/pip install flask-restful
 $project/flask/bin/pip install mysql-python
 $project/flask/bin/pip install flup"
+
+apache_install_commands="
+- Run following commands to install configure apache web server. (Ubuntu)
+
+# Install apache
+sudo apt-get install apache2
+
+# Install modules
+sudo apt-get install libapache2-mod-fcgid
+sudo apt-get install libapache2-mod-wsgi
+"
 
 # Start creating project skeleton
 echo "Creating project skeleton..."
@@ -68,17 +81,36 @@ app = ScriptNameStripper(app)
 if __name__ == '__main__':
     WSGIServer(app).run()" > $project/run.fcgi
 chmod +x $project/run.fcgi
-echo "- Enable mod_rewrite 'sudo a2enmod rewrite'
-- Install enable mod_fcgid 'sudo apt-get install mod_fcgid && sudo a2enmod fcgid'
+
+echo "
+$apache_install_commands
+
+# Enable apache modules rewrite and fcgid
+sudo a2enmod rewrite
+sudo a2enmod fcgid
+
 - AllowOverride All for directory /var/www/ in apache config
-$install_commands" > $project/fcgi_deployment_readme.txt
+
+$flask_install_commands" > $project/fcgi_deployment_readme.txt
 
 echo "from app import app as application" > $project/run.wsgi
-echo "$install_commands
+
+echo "
+$apache_install_commands
+
+# Enable apache modules rewrite and wsgi
+sudo a2enmod rewrite
+sudo a2enmod wsgi
+
+$flask_install_commands
 
 # Sample Apache wsgi virtual host configuration. Remove the .htaccess file if using wsgi
 <VirtualHost *>
-    ServerName example.com
+    #ServerName example.com
+    #ServerAlias www.example.com
+    ServerAdmin webmaster@localhost
+    ErrorLog /var/log/apache2/error.log
+    CustomLog /var/log/apache2/access.log combined
 
     WSGIDaemonProcess $project user=www-data group=www-data threads=50
     WSGIScriptAlias / /var/www/html/$project/run.wsgi
@@ -88,6 +120,9 @@ echo "$install_commands
         WSGIApplicationGroup %{GLOBAL}
         Order deny,allow
         Allow from all
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
     </Directory>
 </VirtualHost>" > $project/wsgi_deployment_readme.txt
 
