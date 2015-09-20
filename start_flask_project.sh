@@ -9,6 +9,21 @@ if [ -f $project ] ; then
     exit 1
 fi
 
+install_commands="
+- Run following commands to set up flask virtualenv if development workstation is non-linux.
+
+sudo apt-get install python-virtualenv
+sudo apt-get install libmysqld-dev
+sudo apt-get install python-dev
+
+cd /var/www/html/
+virtualenv $project/flask
+$project/flask/bin/pip install flask
+$project/flask/bin/pip install flask-sqlalchemy
+$project/flask/bin/pip install flask-restful
+$project/flask/bin/pip install mysql-python
+$project/flask/bin/pip install flup"
+
 # Start creating project skeleton
 echo "Creating project skeleton..."
 
@@ -53,6 +68,28 @@ app = ScriptNameStripper(app)
 if __name__ == '__main__':
     WSGIServer(app).run()" > $project/run.fcgi
 chmod +x $project/run.fcgi
+echo "- Enable mod_rewrite 'sudo a2enmod rewrite'
+- Install enable mod_fcgid 'sudo apt-get install mod_fcgid && sudo a2enmod fcgid'
+- AllowOverride All for directory /var/www/ in apache config
+$install_commands" > $project/fcgi_deployment_readme.txt
+
+echo "from app import app as application" > $project/run.wsgi
+echo "$install_commands
+
+# Sample Apache wsgi virtual host configuration. Remove the .htaccess file if using wsgi
+<VirtualHost *>
+    ServerName example.com
+
+    WSGIDaemonProcess $project user=www-data group=www-data threads=50
+    WSGIScriptAlias / /var/www/html/$project/run.wsgi
+
+    <Directory /var/www/html/$project>
+        WSGIProcessGroup $project
+        WSGIApplicationGroup %{GLOBAL}
+        Order deny,allow
+        Allow from all
+    </Directory>
+</VirtualHost>" > $project/wsgi_deployment_readme.txt
 
 echo "<IfModule mod_fcgid.c>
     AddHandler fcgid-script .py
