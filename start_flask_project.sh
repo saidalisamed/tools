@@ -138,6 +138,12 @@ $flask_install_commands
     WSGIDaemonProcess $project user=www-data group=www-data threads=50
     WSGIScriptAlias / /var/www/html/$project/run.wsgi
 
+    Alias \"/static/\" \"/var/www/html/$project/app/static/\"
+    <Directory \"/var/www/html/$project/app/static/\">
+      Order allow,deny
+      Allow from all
+    </Directory>
+
     <Directory /var/www/html/$project>
         WSGIProcessGroup $project
         WSGIApplicationGroup %{GLOBAL}
