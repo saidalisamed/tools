@@ -128,7 +128,7 @@ sudo a2enmod wsgi
 $flask_install_commands
 
 # Sample Apache wsgi virtual host configuration. Remove the .htaccess file if using wsgi
-<VirtualHost *>
+<VirtualHost *:80>
     #ServerName example.com
     #ServerAlias www.example.com
     ServerAdmin webmaster@localhost
