@@ -91,7 +91,7 @@ sudo a2enmod fcgid
 
 # Apache virtualhost configuration
 
-<VirtualHost *>
+<VirtualHost *:80>
     #ServerName example.com
     #ServerAlias www.example.com
     ServerAdmin webmaster@localhost
