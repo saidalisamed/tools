@@ -278,4 +278,65 @@ $project/flask/bin/pip install flask-restful
 $project/flask/bin/pip install mysql-python
 $project/flask/bin/pip install flup
 
+$project/flask/bin/pip freeze > $project/requirements.txt
+echo "uwsgi" >> $project/requirements.txt
+echo "uWSGI NGINX deployment on Ubuntu
+--------------------------------
+# Upload your application folder '$project' to /var/www/html/
+
+sudo mkdir /etc/uwsgi
+sudo mkdir /var/log/uwsgi
+sudo chown -R www-data:adm /var/log/uwsgi
+sudo vim /etc/uwsgi/$project.ini
+# add the following
+
+[uwsgi]
+socket = /tmp/$project.sock
+master = true
+enable-threads = true
+processes = 1
+chdir= /var/www/html/$project
+module=run:app
+virtualenv = /var/www/html/$project/flask
+uid =  www-data
+gid = www-data
+logto = /var/log/uwsgi/$project.log
+
+
+sudo vim /etc/init/$project.conf
+# add the following
+
+# file: /etc/init/$project.conf
+description "$project uWSGI server"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+respawn
+exec /var/www/html/$project/flask/bin/uwsgi -c /etc/uwsgi/$project.ini
+
+
+sudo start $project
+sudo vim /etc/nginx/sites-available/$project.conf
+# add the following
+
+server {
+    listen 80;
+
+    access_log /var/log/nginx/$project_access.log;
+    error_log /var/log/nginx/$project_error.log error;
+
+    location /static/ { alias /var/www/html/$project/app/static/; }
+    location /api/static/ { alias /var/www/html/$project/app/api/static/; }
+
+    location / {
+        include uwsgi_params;
+        uwsgi_pass unix:/tmp/$project.sock;
+    }
+}
+
+
+sudo ln -s /etc/nginx/sites-available/$project.conf /etc/nginx/sites-enabled
+sudo service nginx restart
+" > $project/uwsgi_nginx_deployment_readme.txt
+
 echo "Project skeleton creation complete."
