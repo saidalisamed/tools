@@ -4,7 +4,7 @@ Simple GCM Test project with SNS integration.
 
 Create Android Project
 ----------------------
-1. In Android Studio create a new project with application name **GcmTest**, package name **com.example.gcmtest** and select **Empty Activity**.
+1. In Android Studio create a new project with application name **GcmTest**, Company domain **example.com** and select **Empty Activity**.
 2. Enable Google services for this application by visiting [here](https://developers.google.com/mobile/add?platform=android&cntapi=gcm&cnturl=https:%2F%2Fdevelopers.google.com%2Fcloud-messaging%2Fandroid%2Fclient&cntlbl=Continue%20Adding%20GCM%20Support&%3Fconfigured%3Dtrue).
     1. For app name enter **GcmTest**.
     2. For package name enter **com.example.gcmtest**.
