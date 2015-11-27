@@ -15,17 +15,23 @@ Create Android Project
     7. Note down **Server API Key** as we will need this to push notification both using curl and SNS.
 3. Move the downloaded **google-services.json** file to **GcmTest** project **app/** directory.
 4. In project **build.gradle** under **dependencies {..}** include the following classpath:
+    
     ```json    
     classpath 'com.google.gms:google-services:1.5.0-beta2'
     ```
+    
 5. In application **build.gradle** add the following in second line:
+
     ```json
     apply plugin: 'com.google.gms.google-services'
     ```
+    
 6. Also add the following under **dependencies {..}**:
+
     ```json
     compile 'com.google.android.gms:play-services-gcm:8.3.0'
     ```
+    
 7. Add a new Java class **RegistrationIntentService** under **com.example.gcmtest** package with the following contents:
 
     ```java
@@ -251,6 +257,7 @@ Publishing Notification using CURL
     ```bash
     curl https://gcm-http.googleapis.com/gcm/send -H "Authorization: key=<API KEY HERE>" -H "Content-Type: application/json" -d @notification.json
     ```
+    
 Publishing Notification using AWS SNS
 -------------------------------------
 Advantage of using SNS is scalability which is required when publishing tens of millions of notifications in a very short period.
@@ -275,3 +282,4 @@ Advantage of using SNS is scalability which is required when publishing tens of 
     "GCM": "{ \"data\": { \"message\": \"Test message from SNS console.\", \"title\": \"GcmTest\" } }"
     }
     ```        
+    
