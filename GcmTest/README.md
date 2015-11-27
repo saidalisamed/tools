@@ -260,7 +260,7 @@ Publishing Notification using CURL
     
 Publishing Notification using AWS SNS
 -------------------------------------
-Advantage of using SNS is scalability which is required when publishing tens of millions of notifications in a very short period.
+Advantage of using SNS is scalability which is required when publishing tens of millions of notifications in a very short time and abstracts interaction with different push services behind a unified API.
 
 1. Add a new platform application in SNS console -> Applications.
 2. Enter **GcmTest** for the name.
