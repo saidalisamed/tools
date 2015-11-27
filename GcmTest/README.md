@@ -1,5 +1,5 @@
-GCM Test
-========
+Android Push Notification Steps
+===============================
 Simple GCM Test project with SNS integration.
 
 Create Android Project
