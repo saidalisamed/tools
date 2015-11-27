@@ -115,6 +115,8 @@ Register App Id in iTunes Connect
     6. Enter **APNsTest** in the **Profile Name:** field.
     7. Click **Generate** and **Download**.
     8. Open the downloaded provisioning profile to add to xCode.
+18. In xCode click on Project name **APNsTest** then click **Capabilities** tab.
+19. Switch **On** Push Notifications.
 
 Get device Token
 ----------------
