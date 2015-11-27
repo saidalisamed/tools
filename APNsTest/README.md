@@ -38,7 +38,7 @@ Create IOS Project
             [[UIApplication sharedApplication] registerForRemoteNotificationTypes:
              (UIUserNotificationTypeBadge | UIUserNotificationTypeSound | UIUserNotificationTypeAlert)];
         }
-    
+        
         return YES;
     }
     
@@ -56,24 +56,36 @@ Create IOS Project
         NSLog(@"%@, %@", error, error.localizedDescription);
     }
     
-    - (void)applicationWillResignActive:(UIApplication *)application {
+    -(void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo {
+        application.applicationIconBadgeNumber = 0;
+        
+        if (application.applicationState == UIApplicationStateActive) {
+            NSString *title = [[userInfo objectForKey:@"aps"] objectForKey:@"title"];
+            NSString *alert = [[userInfo objectForKey:@"aps"] objectForKey:@"alert"];
+            UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:title message:alert delegate:self cancelButtonTitle:@"OK" otherButtonTitles:nil];
+            
+            [alertView show];
+        }    
+    }
     
+    - (void)applicationWillResignActive:(UIApplication *)application {
+        
     }
     
     - (void)applicationDidEnterBackground:(UIApplication *)application {
-    
+        
     }
     
     - (void)applicationWillEnterForeground:(UIApplication *)application {
-    
+        
     }
     
     - (void)applicationDidBecomeActive:(UIApplication *)application {
-    
+        
     }
     
     - (void)applicationWillTerminate:(UIApplication *)application {
-    
+        
     }
     
     @end
@@ -147,7 +159,7 @@ Advantage of using SNS is scalability which is required when publishing tens of 
 
     ```json
     {
-    "APNS_SANDBOX":"{\"aps\":{\"alert\":\"Test message from SNS console.\"}}"
+    "APNS_SANDBOX":"{\"aps\":{\"alert\":\"Test message from SNS console.\", \"title\": \"APNsTest\"}}"
     }
     ```        
     
