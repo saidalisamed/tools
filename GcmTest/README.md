@@ -15,20 +15,20 @@ Create Android Project
     7. Note down **Server API Key** as we will need this to push notification both using curl and SNS.
 3. Move the downloaded **google-services.json** file to **GcmTest** project **app/** directory.
 4. In project **build.gradle** under **dependencies {..}** include the following classpath:
-    
-        classpath 'com.google.gms:google-services:1.5.0-beta2'
-
+    ```json    
+    classpath 'com.google.gms:google-services:1.5.0-beta2'
+    ```
 5. In application **build.gradle** add the following in second line:
-
-        apply plugin: 'com.google.gms.google-services'
-
+    ```json
+    apply plugin: 'com.google.gms.google-services'
+    ```
 6. Also add the following under **dependencies {..}**:
-
-        compile 'com.google.android.gms:play-services-gcm:8.3.0'
-    
+    ```json
+    compile 'com.google.android.gms:play-services-gcm:8.3.0'
+    ```
 7. Add a new Java class **RegistrationIntentService** under **com.example.gcmtest** package with the following contents:
 
-```java
+    ```java
     package com.example.gcmtest;
 
     import android.app.IntentService;
@@ -67,11 +67,11 @@ Create Android Project
     
         }
     }
-```
+    ```
 
 8. Add a new Java class **MyGcmListenerService** under **com.example.gcmtest** package with the following contents:
 
-```java
+    ```java
     package com.example.gcmtest;
     
     import android.app.NotificationManager;
@@ -122,11 +122,11 @@ Create Android Project
             notificationManager.notify(0 /* ID of notification */, notificationBuilder.build());
         }
     }
-```
+    ```
 
 9. Match or replace the content of **MainActivity** class with the following:
 
-```java
+    ```java
     package com.example.gcmtest;
     
     import android.content.Intent;
@@ -172,11 +172,11 @@ Create Android Project
         }
     
     }
-```
+    ```
 
 10. Match or replace **AndroidManifest.xml** file with the following:
 
-```xml
+    ```xml
     <?xml version="1.0" encoding="utf-8"?>
     <manifest xmlns:android="http://schemas.android.com/apk/res/android"
         package="com.example.gcmtest">
@@ -228,7 +228,7 @@ Create Android Project
         </application>
     
     </manifest>
-```
+    ```
 
 11. Run project to get **Registration Token** which will be printed out in the console.
 
@@ -236,7 +236,7 @@ Publishing Notification using CURL
 ----------------------------------
 1. Create a file **notification.json** with the following content. Replace `"to":` value with your device **Registration Token**:
 
-```json
+    ```json
     {
         "to": "ddW-zstyaWY:APA91bEcgwEq-PI8PgH3FWUZv-9K2wTNdgZ9PyZOJIOXaJRlmSPtCVyL1VL-N1kGIJRsXBK_sKL8x7vciOO5T8vTTlhPtyce1NSszkJf9hOizvpZ7X5fU2NClRuTE8QSUAvY1JL44uJa", 
         "data": {
@@ -244,13 +244,13 @@ Publishing Notification using CURL
             "title":"GcmTest"
         }
     }
-```
+    ```
 
 2. Run the following CURL command to publish directly to GCM. Replace `<API KEY HERE>` with your **Server API Key**:
 
-```bash
+    ```bash
     curl https://gcm-http.googleapis.com/gcm/send -H "Authorization: key=<API KEY HERE>" -H "Content-Type: application/json" -d @notification.json
-```
+    ```
 Publishing Notification using AWS SNS
 -------------------------------------
 Advantage of using SNS is scalability which is required when publishing tens of millions of notifications in a very short period.
@@ -270,8 +270,8 @@ Advantage of using SNS is scalability which is required when publishing tens of 
 13. Select **JSON** for **Message format**.
 14. Enter the following in the **Message** box and click **Publish message** button.
 
-```json
+    ```json
     {
     "GCM": "{ \"data\": { \"message\": \"Test message from SNS console.\", \"title\": \"GcmTest\" } }"
     }
-```        
+    ```        
