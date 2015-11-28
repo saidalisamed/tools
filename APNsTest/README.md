@@ -134,7 +134,7 @@ Get device Token
 ----------------
 1. Run the app in xCode and select your device as the target to run on.
 2. Tap OK to allow push notifications as the application starts. Notifications can also be turned On from device settings -> notifications.
-3. As the application starts it will register with Apple and will log device token in xCode console which we will need in for sending notification to the device.
+3. As the application starts it will register with Apple and will log device token in xCode console which we will need for sending notification to the device.
 
 Publishing Notification using AWS SNS
 -------------------------------------
