@@ -61,7 +61,7 @@ import concurrent.futures
 
 __original_idea__ = 'Dennis Hills'
 __idea_contribution__ = 'Howard Kang'
-__author__ = 'Said Samed'
+__author__ = 'Said Ali Samed'
 __date__ = '14/03/2016'
 __version__ = '1.1'
 __updated__ = '15/03/2016'
