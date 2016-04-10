@@ -14,22 +14,22 @@ Create Android Project
     6. Click **Download google-services.json**.
     7. Note down **Server API Key** as we will need this to push notification both using curl and SNS.
 3. Move the downloaded **google-services.json** file to **GcmTest** project **app/** directory.
-4. In project **build.gradle** under **dependencies {..}** include the following classpath:
+4. In project level **build.gradle** under **dependencies {..}** include the following classpath:
     
     ```json    
     classpath 'com.google.gms:google-services:1.5.0-beta2'
     ```
     
-5. In application **build.gradle** add the following in second line:
-
-    ```json
-    apply plugin: 'com.google.gms.google-services'
-    ```
-    
-6. Also add the following under **dependencies {..}**:
+5. In application level **build.gradle** add the following under **dependencies {..}**:
 
     ```json
     compile 'com.google.android.gms:play-services-gcm:8.3.0'
+    ```
+    
+6. Also, in application level **build.gradle** add the following at the end of the file:
+
+    ```json
+    apply plugin: 'com.google.gms.google-services'
     ```
     
 7. Add a new Java class **RegistrationIntentService** under **com.example.gcmtest** package with the following contents:
