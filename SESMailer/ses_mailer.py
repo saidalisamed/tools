@@ -1,6 +1,6 @@
 # SES Mailer lambda function
 # This function uses S3 put events to pick the dropped file and send emails using SES to the listed
-# email addresses in the file.
+# email addresses in the csv file.
 #
 # Usage:
 # ------
@@ -8,14 +8,15 @@
 #    S3 read/write permissions to the bucket and ses:Send* permission.
 # 2. Create a S3 bucket and set up events for 'put' to trigger this lambda function.
 # 3. In the S3 events configuration, set the event suffix to '.gz'.
-# 4. Create a mailing list file i.e 'mailing_list_14032016.csv' with contents in the below json format.
+# 4. Create your html email file html_message.html and upload to S3 bucket.
+# 5. Create the plain text email file text_message.txt and upload to S3 bucket.
+# 6. Create a mailing list file i.e 'mailing_list_14032016.csv' with contents in the below csv format.
 #
-#    me@example.com, you@example.com, optional message or leave blank to use the generic template
+#    Sender Name <me@example.com>, Recipient Name <you@example.com>, subject
 #
-# 5. Create your email template in file email-template.html and upload to S3 bucket.
-# 6. Compress the file using gzip. e.g 'gzip -kf mailing_list_14032016.csv' creates 'mailing_list_14032016.csv.gz'
-# 7. Upload the file 'mailing_list_14032016.csv.gz' to the S3 bucket which will trigger this lambda function.
-# 8. This function will send email to all addresses in the csv file and log failures in <FILENAME>_error.log.
+# 7. Compress the file using gzip. e.g 'gzip -kf mailing_list_14032016.csv' creates 'mailing_list_14032016.csv.gz'
+# 8. Upload the file 'mailing_list_14032016.csv.gz' to the S3 bucket which will trigger this lambda function.
+# 9. This function will send email to all addresses in the csv file and log failures in <FILENAME>_error.log.
 #
 # Tip: Send even faster by distributing emails addresses across multiple smaller csv files when the number
 # of addresses exceed over a few 100,000s or increase max_threads variable value to something higher.
@@ -42,6 +43,8 @@ import urllib
 import zlib
 
 from time import strftime, gmtime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import boto3
 import botocore
@@ -50,29 +53,40 @@ import concurrent.futures
 __author__ = 'Said Ali Samed'
 __date__ = '10/04/2016'
 __version__ = '1.0'
-__updated__ = 'No updates yet'
 
 # ** Configurable settings **
 region = 'us-east-1'
 max_threads = 10
-email_template_file = 'email-template.html'
+text_message_file = 'text_message.txt'
+html_message_file = 'html_message.html'
 
 # Initialize clients
 s3 = boto3.client('s3', region_name=region)
 ses = boto3.client('ses', region_name=region)
 send_errors = []
-generic_message = ''
+mime_message_text = ''
+mime_message_html = ''
 
 
 def current_time():
     return strftime("%Y-%m-%d %H:%M:%S UTC", gmtime())
 
 
-def send_mail(from_address, to_address, message=None):
-    global send_errors
-    raw_message = message if message and len(message.strip()) > 0 else generic_message
-    print('Raw message being sent:\n' + raw_message)
+def mime_email(subject, from_address, to_address, text_message=None, html_message=None):
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = from_address
+    msg['To'] = to_address
+    if text_message:
+        msg.attach(MIMEText(text_message, 'plain'))
+    if html_message:
+        msg.attach(MIMEText(html_message, 'html'))
 
+    return msg.as_string()
+
+
+def send_mail(from_address, to_address, message):
+    global send_errors
     try:
         response = ses.send_raw_email(
             Source=from_address,
@@ -80,10 +94,9 @@ def send_mail(from_address, to_address, message=None):
                 to_address,
             ],
             RawMessage={
-                'Data': raw_message
+                'Data': message
             }
         )
-        print(response)
         if not isinstance(response, dict):  # log failed requests only
             send_errors.append('%s, %s, %s' % (current_time(), to_address, response))
     except botocore.exceptions.ClientError as e:
@@ -96,25 +109,42 @@ def send_mail(from_address, to_address, message=None):
 
 def lambda_handler(event, context):
     global send_errors
-    global generic_message
+    global mime_message_text
+    global mime_message_html
     try:
         # Read the uploaded csv file from the bucket into python dictionary list
         bucket = event['Records'][0]['s3']['bucket']['name']
         key = urllib.unquote_plus(event['Records'][0]['s3']['object']['key']).decode('utf8')
         response = s3.get_object(Bucket=bucket, Key=key)
         body = zlib.decompress(response['Body'].read(), 16+zlib.MAX_WBITS)
-        print(body)
-        reader = csv.DictReader(StringIO.StringIO(body), fieldnames=['from_address', 'to_address', 'message'])
+        reader = csv.DictReader(StringIO.StringIO(body),
+                                fieldnames=['from_address', 'to_address', 'subject', 'message'])
 
-        # Read the email template file
-        response = s3.get_object(Bucket=bucket, Key=email_template_file)
-        generic_message = response['Body'].read()
-        print(generic_message)
+        # Read the message files
+        try:
+            response = s3.get_object(Bucket=bucket, Key=text_message_file)
+            mime_message_text = response['Body'].read()
+        except:
+            mime_message_text = None
+            print('Failed to read text message file. Did you upload %s?' % text_message_file)
+        try:
+            response = s3.get_object(Bucket=bucket, Key=html_message_file)
+            mime_message_html = response['Body'].read()
+        except:
+            mime_message_html = None
+            print('Failed to read html message file. Did you upload %s?' % html_message_file)
+
+        if not mime_message_text and not mime_message_html:
+            raise ValueError('Cannot continue without a text or html message file.')
 
         # Send in parallel using several threads
         e = concurrent.futures.ThreadPoolExecutor(max_workers=max_threads)
         for row in reader:
-            e.submit(send_mail, row['from_address'], row['to_address'], row['message'])
+            from_address = row['from_address'].strip()
+            to_address = row['to_address'].strip()
+            subject = row['subject'].strip()
+            message = mime_email(subject, from_address, to_address, mime_message_text, mime_message_html)
+            e.submit(send_mail, from_address, to_address, message)
         e.shutdown()
     except Exception as e:
         print(e.message + ' Aborting...')
@@ -124,7 +154,7 @@ def lambda_handler(event, context):
 
     # Remove the uploaded csv file
     try:
-        #response = s3.delete_object(Bucket=bucket, Key=key)
+        response = s3.delete_object(Bucket=bucket, Key=key)
         if 'ResponseMetadata' in response.keys() and response['ResponseMetadata']['HTTPStatusCode'] == 204:
             print('Removed s3://%s/%s' % (bucket, key))
     except Exception as e:
