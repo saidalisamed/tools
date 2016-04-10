@@ -1,14 +1,14 @@
 SES Mailer
 ==========
-Send emails faster using AWS SES without a backend.
+Send email faster using AWS SES without a backend.
 
 How it works
 ------------
-SES Mailer uses lambda to send mass emails. It is invoked by S3 PUT event when a mailing list is dropped into the designated bucket. The function sends multipart/alternative emails and takes its message contents from a formatted HTML and plain text file dropped in the same bucket.
+SES Mailer uses lambda to send mass email. It is invoked by S3 PUT event when a mailing list is dropped into the designated bucket. The function takes its message content from a HTML and plain text message file dropped in the same bucket. It sends multipart/alternative formatted emails.
 
 Usage
 -----
-1. Deploy the function `ses_mailer.py` on AWS Lambda with a timeout setting of 5 minutes. Make sure the lambda Role has
+1. Deploy `ses_mailer.py` on AWS Lambda with a timeout setting of 5 minutes. Make sure the lambda Role has
    S3 read/write permissions to the bucket and `ses:SendRawEmail` permission.
 2. Create a S3 bucket and set `put` event to trigger this lambda function.
 3. In the S3 events configuration, set the event suffix to `.gz`.
@@ -22,7 +22,7 @@ Usage
     
 7. Compress the file using gzip. e.g `gzip -kf mailing_list_14032016.csv` creates `mailing_list_14032016.csv.gz`
 8. Upload the gzipped file **mailing_list_14032016.csv.gz** to the S3 bucket and it will trigger this lambda function.
-9. Upon trigger this function will start sending email to all addresses in the csv file and log failures in <FILENAME>_error.log.
+9. This function will start sending email to all addresses in the csv file and log failures in `<FILENAME>_error.log`.
 
-**Tip:** Send even faster by splitting email lists into multiple smaller csv files when the number of addresses exceed over a few 100,000s or increase `max_threads` variable value to something higher.
+**Tip:** Send even faster by splitting email list into multiple smaller csv files when the number of addresses exceed over a few 100,000s or increase `max_threads` variable value to something higher.
     
