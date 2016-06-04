@@ -46,6 +46,12 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
 # ANY KIND, either express or implied. See the License for the specific
 # language governing permissions and limitations under the License.
+#
+# Version 1.2
+# -----------
+# Time logging to s3. Creates a file with time information for each uploaded file
+# Get total publish time by calculating difference between earliest and the latest logged time across all files
+
 
 from __future__ import print_function
 
@@ -54,6 +60,7 @@ import urllib
 import zlib
 
 from time import strftime, gmtime
+import time
 
 import boto3
 import botocore
@@ -63,21 +70,49 @@ __original_idea__ = 'Dennis Hills'
 __idea_contribution__ = 'Howard Kang'
 __author__ = 'Said Ali Samed'
 __date__ = '14/03/2016'
-__version__ = '1.1'
-__updated__ = '15/03/2016'
+__version__ = '1.2'
+__updated__ = '02/06/2016'
 
 # ** Configurable settings **
-region = 'us-west-2'
-max_threads = 100
+region = 'us-east-1'
+max_threads = 1000
+log_time = True
 
 # Initialize clients
 s3 = boto3.client('s3', region_name=region)
 sns = boto3.client('sns', region_name=region)
 publish_errors = []
+start_time = 0
+end_time = 0
+bucket = ''
+key = ''
 
 
 def current_time():
     return strftime("%Y-%m-%d %H:%M:%S UTC", gmtime())
+
+
+def save_to_s3(data, s3_bucket, s3_key):
+    try:
+        response = s3.put_object(Bucket=s3_bucket, Key=s3_key, Body=data)
+        if 'ResponseMetadata' in response.keys() and response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            print('Saved file in s3://%s/%s' % (s3_bucket, s3_key))
+    except Exception as e:
+        print(e)
+        raise e
+
+
+# Logs unix timestamps in s3 in format start_time, end_time, total_time
+def log(command):
+    global start_time, end_time, bucket, key
+    if log_time:
+        if command == 'start':
+            start_time = time.time()
+        elif command == 'end':
+            end_time = time.time()
+        elif command == 'save':
+            data = '%f, %f, %f' % (start_time, end_time, end_time-start_time)
+            save_to_s3(data, bucket, key + '_time.log')
 
 
 def publish(endpoint, message=None):
@@ -107,7 +142,11 @@ def publish(endpoint, message=None):
 
 
 def lambda_handler(event, context):
-    global publish_errors
+    global publish_errors, bucket, key
+
+    # Start time logging
+    log('start')
+
     try:
         # Read the uploaded object from bucket
         bucket = event['Records'][0]['s3']['bucket']['name']
@@ -134,6 +173,9 @@ def lambda_handler(event, context):
 
     print('Publish complete.')
 
+    # Finish time logging
+    log('end')
+
     # Remove the uploaded object
     try:
         response = s3.delete_object(Bucket=bucket, Key=key)
@@ -144,18 +186,15 @@ def lambda_handler(event, context):
 
     # Upload errors if any to S3
     if len(publish_errors) > 0:
-        try:
-            result_data = '\n'.join(publish_errors)
-            logfile_key = key.replace('.json.gz', '') + '_error.log'
-            response = s3.put_object(Bucket=bucket, Key=logfile_key, Body=result_data)
-            if 'ResponseMetadata' in response.keys() and response['ResponseMetadata']['HTTPStatusCode'] == 200:
-                print('Publish errors saved in s3://%s/%s' % (bucket, logfile_key))
-        except Exception as e:
-            print(e)
-            raise e
+        result_data = '\n'.join(publish_errors)
+        logfile_key = key.replace('.json.gz', '') + '_error.log'
+        save_to_s3(result_data, bucket, logfile_key)
+
         # Reset publish error log
         publish_errors = []
 
+    # Store time log to s3
+    log('save')
 
 if __name__ == "__main__":
     json_content = json.loads(open('event.json', 'r').read())
