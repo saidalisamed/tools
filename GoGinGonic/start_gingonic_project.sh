@@ -1,0 +1,314 @@
+#!/usr/bin/env bash
+
+# Creates a Go gingonic project skeleton.
+# Also includes sql and sample routes.
+
+project=$1
+if [ -f $project ] ; then
+    echo "Project name not specified."
+    exit 1
+fi
+
+# Start creating project skeleton
+echo "Creating project skeleton..."
+
+mkdir $project
+resources=$project/resources
+mkdir $resources
+mkdir $resources/static
+mkdir $resources/static/img
+mkdir $resources/static/css
+mkdir $resources/static/js
+mkdir $resources/templates
+
+echo "# configuration
+DEBUG = False
+SECRET_KEY = 'Run in interpreter for strong secret: import os;os.urandom(24)'
+SQLALCHEMY_DATABASE_URI = 'mysql://username:password@localhost/database_name'" > $project/config.py
+
+echo "#!flask/bin/python
+
+from app import app
+
+if __name__ == '__main__':
+    app.run(debug=True)" > $project/run.py
+chmod +x $project/run.py
+
+echo "#!flask/bin/python
+
+from flup.server.fcgi import WSGIServer
+from app import app
+
+
+class ScriptNameStripper(object):
+    def __init__(self, the_app):
+        self.app = the_app
+
+    def __call__(self, environ, start_response):
+        environ['SCRIPT_NAME'] = ''
+        return self.app(environ, start_response)
+
+app = ScriptNameStripper(app)
+
+if __name__ == '__main__':
+    WSGIServer(app).run()" > $project/run.fcgi
+chmod +x $project/run.fcgi
+
+echo "
+$apache_install_commands
+
+# Enable apache modules rewrite and fcgid
+sudo a2enmod rewrite
+sudo a2enmod fcgid
+
+# Apache virtualhost configuration
+
+<VirtualHost *:80>
+    #ServerName example.com
+    #ServerAlias www.example.com
+    ServerAdmin webmaster@localhost
+    ErrorLog /var/log/apache2/error.log
+    CustomLog /var/log/apache2/access.log combined
+    DocumentRoot /var/www/html/$project
+
+    <Directory /var/www/html/$project>
+        Order deny,allow
+        Allow from all
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+
+$flask_install_commands" > $project/fcgi_deployment_readme.txt
+
+echo "activate_this = '/var/www/html/$project/flask/bin/activate_this.py'
+execfile(activate_this, dict(__file__=activate_this))
+
+import sys
+sys.path.append('/var/www/html/$project')
+
+from run import app as application" > $project/run.wsgi
+
+echo "
+$apache_install_commands
+
+# Enable apache modules rewrite and wsgi
+sudo a2enmod rewrite
+sudo a2enmod wsgi
+
+$flask_install_commands
+
+# Sample Apache wsgi virtual host configuration. Remove the .htaccess file if using wsgi
+<VirtualHost *:80>
+    #ServerName example.com
+    #ServerAlias www.example.com
+    ServerAdmin webmaster@localhost
+    ErrorLog /var/log/apache2/error.log
+    CustomLog /var/log/apache2/access.log combined
+
+    WSGIDaemonProcess $project user=www-data group=www-data threads=50
+    WSGIScriptAlias / /var/www/html/$project/run.wsgi
+
+    Alias \"/static/\" \"/var/www/html/$project/app/static/\"
+    <Directory \"/var/www/html/$project/app/static/\">
+      Order allow,deny
+      Allow from all
+    </Directory>
+
+    <Directory /var/www/html/$project>
+        WSGIProcessGroup $project
+        WSGIApplicationGroup %{GLOBAL}
+        Order deny,allow
+        Allow from all
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+</VirtualHost>" > $project/wsgi_deployment_readme.txt
+
+echo "<IfModule mod_fcgid.c>
+    AddHandler fcgid-script .py
+    <Files ~ \"\.(fcgi|py|pyc)\">
+        SetHandler fcgid-script
+        Options +SymLinksIfOwnerMatch +ExecCGI
+    </Files>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    Options +SymLinksIfOwnerMatch
+    RewriteEngine On
+    RewriteBase /
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^(.*)$ run.fcgi/\$1 [QSA,L]
+</IfModule>" > $project/.htaccess
+
+echo "{% extends \"layout.html\" %}
+{% block body %}
+{% endblock %}" > $resources/templates/home.html
+
+echo "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
+        \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">
+
+<html xmlns=\"http://www.w3.org/1999/xhtml\">
+<head>
+    <title>$project</title>
+    <link rel=stylesheet type=text/css href=\"{{ url_for('static', filename='css/style.css') }}\">
+</head>
+<body>
+<div class=page>
+    <h1>Welcome to $project.</h1>
+
+    <div class=nav>
+    </div>
+    {% for message in get_flashed_messages() %}
+    <div class=flash>{{ message }}</div>
+    {% endfor %}
+    {% block body %}{% endblock %}
+</div>
+</body>
+</html>" > $resources/templates/layout.html
+
+echo "body            { font-family: sans-serif; background: #eee; }
+.flash          { background: #cee5F5; padding: 0.5em; border: 1px solid #aacbe2; }" > $resources/static/css/style.css
+
+echo "from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config.from_object('config')
+db = SQLAlchemy(app)
+
+from app import views, models" > $resources/__init__.py
+
+echo "from app import db
+
+
+class Test(db.Model):
+    __tablename__ = 'test'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    value = db.Column(db.Integer)
+
+    def __init__(self, test_id, name, value):
+        self.id = test_id
+        self.name = name
+        self.value = value" > $resources/models.py
+
+echo "from flask import render_template, flash
+from app import app
+from api.views import api_blueprint
+
+# Register blueprints
+app.register_blueprint(api_blueprint, url_prefix='/api')
+
+
+@app.route('/')
+def home():
+    return render_template('home.html')
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    flash('Sorry, nothing at this URL.')
+    return render_template('home.html'), 404, e" > $resources/views.py
+
+api=$resources/api
+mkdir $api
+mkdir $api/static
+mkdir $api/static/img
+mkdir $api/static/css
+mkdir $api/static/js
+mkdir $api/templates
+
+touch $api/__init__.py
+echo "from flask import Blueprint
+from flask_restful import Resource, Api
+
+# Blueprint
+api_blueprint = Blueprint('api_blueprint', __name__, template_folder='templates', static_folder='static')
+api = Api(api_blueprint)
+
+
+class Version(Resource):
+    def get(self):
+        return {'version': '1.0'}
+api.add_resource(Version, '/version')
+
+
+@api_blueprint.route('/')
+def home():
+    return 'API home'" > $api/views.py
+
+# Flask in virtualenv
+echo "Setting up flask in virtualenv..."
+
+virtualenv $project/flask
+$project/flask/bin/pip install flask
+$project/flask/bin/pip install flask-sqlalchemy
+$project/flask/bin/pip install flask-restful
+$project/flask/bin/pip install mysql-python
+$project/flask/bin/pip install flup
+
+$project/flask/bin/pip freeze > $project/requirements.txt
+echo "uwsgi" >> $project/requirements.txt
+echo "uWSGI NGINX deployment on Ubuntu
+--------------------------------
+# Upload your application folder '$project' to /var/www/html/
+
+sudo mkdir /etc/uwsgi
+sudo mkdir /var/log/uwsgi
+sudo chown -R www-data:adm /var/log/uwsgi
+sudo vim /etc/uwsgi/$project.ini
+# add the following
+
+[uwsgi]
+socket = /tmp/$project.sock
+master = true
+enable-threads = true
+processes = 1
+chdir= /var/www/html/$project
+module=run:app
+virtualenv = /var/www/html/$project/flask
+uid =  www-data
+gid = www-data
+logto = /var/log/uwsgi/$project.log
+
+
+sudo vim /etc/init/$project.conf
+# add the following
+
+# file: /etc/init/$project.conf
+description "$project uWSGI server"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+respawn
+exec /var/www/html/$project/flask/bin/uwsgi -c /etc/uwsgi/$project.ini
+
+
+sudo start $project
+sudo vim /etc/nginx/sites-available/$project.conf
+# add the following
+
+server {
+    listen 80;
+
+    access_log /var/log/nginx/$project_access.log;
+    error_log /var/log/nginx/$project_error.log error;
+
+    location /static/ { alias /var/www/html/$project/app/static/; }
+    location /api/static/ { alias /var/www/html/$project/app/api/static/; }
+
+    location / {
+        include uwsgi_params;
+        uwsgi_pass unix:/tmp/$project.sock;
+    }
+}
+
+
+sudo ln -s /etc/nginx/sites-available/$project.conf /etc/nginx/sites-enabled
+sudo service nginx restart
+" > $project/uwsgi_nginx_deployment_readme.txt
+
+echo "Project skeleton creation complete."
