@@ -1,11 +1,10 @@
-Python Flask
+Go Gin Gonic
 ============
-Contains script that creates a starter Python Flask project which includes modular design using Flask blueprints and
-generated project contains scripts and steps to deploy on various application servers.
+Creates Go Gin Gonic web app project skeleton with working sample code.
 
 Examples:
 --------
-Generate a new fully operational Flask project:
+Generate a new fully operational Go Gn Gonic webapp project:
 
-    ./start_flask_project.sh myproject.example.com
+    ./start_gingonic_project.sh myproject.example.com
     

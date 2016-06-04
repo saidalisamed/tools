@@ -5,7 +5,7 @@
 
 project=$1
 if [ -f $project ] ; then
-    echo "Project name not specified."
+    echo "Please specify a project name."
     exit 1
 fi
 
@@ -20,295 +20,255 @@ mkdir $resources/static/img
 mkdir $resources/static/css
 mkdir $resources/static/js
 mkdir $resources/templates
+mkdir $resources/notes
 
-echo "# configuration
-DEBUG = False
-SECRET_KEY = 'Run in interpreter for strong secret: import os;os.urandom(24)'
-SQLALCHEMY_DATABASE_URI = 'mysql://username:password@localhost/database_name'" > $project/config.py
+echo "package main
 
-echo "#!flask/bin/python
+import (
+	\"database/sql\"
+	\"flag\"
+	\"github.com/gin-gonic/gin\"
+	_ \"github.com/go-sql-driver/mysql\"
+	\"gopkg.in/gorp.v1\"
+	\"log\"
+	\"net/http\"
+	\"runtime\"
+	\"time\"
+)
 
-from app import app
+// Database models
+type Products struct {
+	Id             int64     \`db:\"id\" json:\"id\"\`
+	Name           string    \`db:\"name\" json:\"name\"\`
+	Date           time.Time \`db:\"date\" json:\"date\"\`
+}
 
-if __name__ == '__main__':
-    app.run(debug=True)" > $project/run.py
-chmod +x $project/run.py
+// Global variables
+var dbmap *gorp.DbMap
 
-echo "#!flask/bin/python
+const dbUser = \"secret\"
+const dbPass = \"secret\"
+const dbName = \"secret\"
 
-from flup.server.fcgi import WSGIServer
-from app import app
+// Database connection
+func initDb(socketFile string) *gorp.DbMap {
 
+    db, err := sql.Open(\"mysql\", dbUser+\":\"+dbPass+\"@unix(\"+socketFile+\")/\"+dbName+\"?parseTime=true\")
+	checkErr(err, \"sql.Open failed\")
+	dbmap := &gorp.DbMap{Db: db, Dialect: gorp.MySQLDialect{\"MyISAM\", \"UTF8\"}}
+	dbmap.AddTableWithName(Products{}, \"products\").SetKeys(true, \"Id\")
 
-class ScriptNameStripper(object):
-    def __init__(self, the_app):
-        self.app = the_app
+	return dbmap
+}
 
-    def __call__(self, environ, start_response):
-        environ['SCRIPT_NAME'] = ''
-        return self.app(environ, start_response)
+func checkErr(err error, msg string) {
 
-app = ScriptNameStripper(app)
+	if err != nil {
+		log.Panic(msg, err)
+	}
+}
 
-if __name__ == '__main__':
-    WSGIServer(app).run()" > $project/run.fcgi
-chmod +x $project/run.fcgi
+func main() {
 
-echo "
-$apache_install_commands
+	// Performance and deployment related settings
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	gin.SetMode(gin.DebugMode)
 
-# Enable apache modules rewrite and fcgid
-sudo a2enmod rewrite
-sudo a2enmod fcgid
+	// Initialize gin request router
+	router := gin.Default()
+	router.LoadHTMLGlob(\"resources/templates/*\")
+	router.Static(\"/static\", \"resources/static\")
 
-# Apache virtualhost configuration
+	// Main website pages
+	mainSection := router.Group(\"/\")
+	{
+		mainSection.GET(\"/\", index)
+		mainSection.GET(\"/about\", about)
+		mainSection.GET(\"/product/:name\", product)
+	}
 
-<VirtualHost *:80>
-    #ServerName example.com
-    #ServerAlias www.example.com
-    ServerAdmin webmaster@localhost
-    ErrorLog /var/log/apache2/error.log
-    CustomLog /var/log/apache2/access.log combined
-    DocumentRoot /var/www/html/$project
+	// /api pages
+	api := router.Group(\"/api\")
+	{
+		api.GET(\"/\", apiIndex)
+		api.GET(\"/product/:name\", apiProduct)
+        api.GET(\"/list\", apiList)
+	}
 
-    <Directory /var/www/html/$project>
-        Order deny,allow
-        Allow from all
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
+    // Connect to mysql using unix socket for performance using --dbsocket=/var/run/...mysql.sock
+    // When deployed you may want to listen on unix socket instead of tcp using --unixsocket
+	dbsocketPtr := flag.String(\"dbsocket\", \"/tmp/mysql.sock\", \"MySQL socket file path\")
+	unixsocketPtr := flag.Bool(\"unixsocket\", false, \"Application to listen on unix socket or tcp 8080\")
+	flag.Parse()
 
-$flask_install_commands" > $project/fcgi_deployment_readme.txt
+	// Connect to database
+    // Uncomment below if require database backend
+	dbmap = initDb(*dbsocketPtr)
 
-echo "activate_this = '/var/www/html/$project/flask/bin/activate_this.py'
-execfile(activate_this, dict(__file__=activate_this))
+	// Listen on unix socket or tcp based on commandline flags
+	if *unixsocketPtr {
+		router.RunUnix(\"/tmp/$project.sock\")
+	} else {
+		router.Run(\"127.0.0.1:8080\")
+	}
+}
 
-import sys
-sys.path.append('/var/www/html/$project')
+// ------------- Main website functions ------------
 
-from run import app as application" > $project/run.wsgi
+func index(c *gin.Context) {
 
-echo "
-$apache_install_commands
+	c.HTML(http.StatusOK, \"index.html\", gin.H{
+		\"title\":    \"$project Home\",
+	})
+}
 
-# Enable apache modules rewrite and wsgi
-sudo a2enmod rewrite
-sudo a2enmod wsgi
+func about(c *gin.Context) {
 
-$flask_install_commands
+	c.HTML(http.StatusOK, \"about.html\", gin.H{
+		\"title\":    \"About $project\",
+	})
+}
 
-# Sample Apache wsgi virtual host configuration. Remove the .htaccess file if using wsgi
-<VirtualHost *:80>
-    #ServerName example.com
-    #ServerAlias www.example.com
-    ServerAdmin webmaster@localhost
-    ErrorLog /var/log/apache2/error.log
-    CustomLog /var/log/apache2/access.log combined
+func product(c *gin.Context) {
 
-    WSGIDaemonProcess $project user=www-data group=www-data threads=50
-    WSGIScriptAlias / /var/www/html/$project/run.wsgi
+    name := c.Param(\"name\")
+	c.HTML(http.StatusOK, \"product.html\", gin.H{
+		\"title\":    \"Product detail\",
+		\"name\":     name,
+	})
+}
 
-    Alias \"/static/\" \"/var/www/html/$project/app/static/\"
-    <Directory \"/var/www/html/$project/app/static/\">
-      Order allow,deny
-      Allow from all
-    </Directory>
+// ------------- API functions ------------
 
-    <Directory /var/www/html/$project>
-        WSGIProcessGroup $project
-        WSGIApplicationGroup %{GLOBAL}
-        Order deny,allow
-        Allow from all
-        Options Indexes FollowSymLinks
-        AllowOverride None
-        Require all granted
-    </Directory>
-</VirtualHost>" > $project/wsgi_deployment_readme.txt
+func apiIndex(c *gin.Context) {
 
-echo "<IfModule mod_fcgid.c>
-    AddHandler fcgid-script .py
-    <Files ~ \"\.(fcgi|py|pyc)\">
-        SetHandler fcgid-script
-        Options +SymLinksIfOwnerMatch +ExecCGI
-    </Files>
-</IfModule>
+	c.String(http.StatusOK, \"$project API Endpoint\")
+}
 
-<IfModule mod_rewrite.c>
-    Options +SymLinksIfOwnerMatch
-    RewriteEngine On
-    RewriteBase /
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^(.*)$ run.fcgi/\$1 [QSA,L]
-</IfModule>" > $project/.htaccess
+func apiProduct(c *gin.Context) {
 
-echo "{% extends \"layout.html\" %}
-{% block body %}
-{% endblock %}" > $resources/templates/home.html
+    name := c.Param(\"name\")
+	c.JSON(http.StatusOK, gin.H{
+		\"name\":     name,
+	})
+}
 
-echo "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
-        \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">
+func apiList(c *gin.Context) {
 
-<html xmlns=\"http://www.w3.org/1999/xhtml\">
+    var products []Products
+    dbmap.Select(&products, \"SELECT * FROM products\")
+	c.JSON(http.StatusOK, gin.H{
+		\"name\":     gin.H{\"products\": &products},
+	})
+}
+" > $project/app.go
+
+echo "{{ define \"top\" }}
+<!DOCTYPE html>
+<html lang=\"en\">
 <head>
-    <title>$project</title>
-    <link rel=stylesheet type=text/css href=\"{{ url_for('static', filename='css/style.css') }}\">
+  <meta charset=\"UTF-8\">
+  <title>{{ .title }}</title>
 </head>
 <body>
-<div class=page>
-    <h1>Welcome to $project.</h1>
+{{ end }}
 
-    <div class=nav>
-    </div>
-    {% for message in get_flashed_messages() %}
-    <div class=flash>{{ message }}</div>
-    {% endfor %}
-    {% block body %}{% endblock %}
-</div>
+
+{{ define \"bottom\" }}
 </body>
-</html>" > $resources/templates/layout.html
+</html>
+{{ end }}" > $resources/templates/common.tmpl.html
 
-echo "body            { font-family: sans-serif; background: #eee; }
-.flash          { background: #cee5F5; padding: 0.5em; border: 1px solid #aacbe2; }" > $resources/static/css/style.css
+echo "{{ template \"top\" . }}
 
-echo "from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+$project Homepage
 
-app = Flask(__name__)
-app.config.from_object('config')
-db = SQLAlchemy(app)
+{{ template \"bottom\" }}" > $resources/templates/index.html
 
-from app import views, models" > $resources/__init__.py
+echo "{{ template \"top\" . }}
 
-echo "from app import db
+About $project
 
+{{ template \"bottom\" }}" > $resources/templates/about.html
 
-class Test(db.Model):
-    __tablename__ = 'test'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    value = db.Column(db.Integer)
+echo "{{ template \"top\" . }}
 
-    def __init__(self, test_id, name, value):
-        self.id = test_id
-        self.name = name
-        self.value = value" > $resources/models.py
+Viewing product: {{ .name }}
 
-echo "from flask import render_template, flash
-from app import app
-from api.views import api_blueprint
+{{ template \"bottom\" }}" > $resources/templates/product.html
 
-# Register blueprints
-app.register_blueprint(api_blueprint, url_prefix='/api')
+echo "$project project skeleton creation complete."
 
+echo "
+Deployment Notes
+----------------
+1. Build $project for the destination architecture such as amd64:
 
-@app.route('/')
-def home():
-    return render_template('home.html')
+   env GOOS=linux GOARCH=amd64 go build -v $project/app.go
 
+2. Copy your project $project excluding the Go source app.go to your server (Ubuntu) in /var/www/html/$project.
 
-@app.errorhandler(404)
-def page_not_found(e):
-    flash('Sorry, nothing at this URL.')
-    return render_template('home.html'), 404, e" > $resources/views.py
+3. Create a startup script to launch the app.
 
-api=$resources/api
-mkdir $api
-mkdir $api/static
-mkdir $api/static/img
-mkdir $api/static/css
-mkdir $api/static/js
-mkdir $api/templates
-
-touch $api/__init__.py
-echo "from flask import Blueprint
-from flask_restful import Resource, Api
-
-# Blueprint
-api_blueprint = Blueprint('api_blueprint', __name__, template_folder='templates', static_folder='static')
-api = Api(api_blueprint)
-
-
-class Version(Resource):
-    def get(self):
-        return {'version': '1.0'}
-api.add_resource(Version, '/version')
-
-
-@api_blueprint.route('/')
-def home():
-    return 'API home'" > $api/views.py
-
-# Flask in virtualenv
-echo "Setting up flask in virtualenv..."
-
-virtualenv $project/flask
-$project/flask/bin/pip install flask
-$project/flask/bin/pip install flask-sqlalchemy
-$project/flask/bin/pip install flask-restful
-$project/flask/bin/pip install mysql-python
-$project/flask/bin/pip install flup
-
-$project/flask/bin/pip freeze > $project/requirements.txt
-echo "uwsgi" >> $project/requirements.txt
-echo "uWSGI NGINX deployment on Ubuntu
---------------------------------
-# Upload your application folder '$project' to /var/www/html/
-
-sudo mkdir /etc/uwsgi
-sudo mkdir /var/log/uwsgi
-sudo chown -R www-data:adm /var/log/uwsgi
-sudo vim /etc/uwsgi/$project.ini
-# add the following
-
-[uwsgi]
-socket = /tmp/$project.sock
-master = true
-enable-threads = true
-processes = 1
-chdir= /var/www/html/$project
-module=run:app
-virtualenv = /var/www/html/$project/flask
-uid =  www-data
-gid = www-data
-logto = /var/log/uwsgi/$project.log
-
-
-sudo vim /etc/init/$project.conf
-# add the following
-
+   sudo vim /etc/init/$project.conf
+   # add the following
+   
+#################
 # file: /etc/init/$project.conf
-description "$project uWSGI server"
+description \"$project web app\"
 
 start on runlevel [2345]
 stop on runlevel [!2345]
 respawn
-exec /var/www/html/$project/flask/bin/uwsgi -c /etc/uwsgi/$project.ini
+script
+  cd /var/www/html/$project/
+  exec sudo -u www-data /var/www/html/$project/app -unixsocket -dbsocket=/var/run/mysqld/mysqld.sock >> /var/log/$project/access.log 2>&1
+end script
+#################
 
+   mkdir /var/log/$project
+   sudo start $project
+   sudo vim /etc/logrotate.d/$project
+   # add the following
 
-sudo start $project
-sudo vim /etc/nginx/sites-available/$project.conf
-# add the following
+#################
+/var/log/$project/*.log {
+        weekly
+        missingok
+        rotate 10
+        compress
+        delaycompress
+        notifempty
+        create 0640 root root
+        sharedscripts
+        postrotate
+    		restart -q $project
+        endscript
+}
+#################
+
+4. Configure nginx as your application frontend.
+
+   sudo vim /etc/nginx/sites-available/$project.conf
+   # add the following
+
+#################
+upstream $project {
+    server unix:/tmp/$project.sock;
+}
 
 server {
     listen 80;
-
+    server_name www.example.com;
     access_log /var/log/nginx/$project_access.log;
     error_log /var/log/nginx/$project_error.log error;
-
-    location /static/ { alias /var/www/html/$project/app/static/; }
-    location /api/static/ { alias /var/www/html/$project/app/api/static/; }
-
+    location /static/ { alias /var/www/html/$project/resources/static/; }
     location / {
-        include uwsgi_params;
-        uwsgi_pass unix:/tmp/$project.sock;
+        proxy_pass http://$project;
     }
-}
+#################
 
+   sudo ln -s /etc/nginx/sites-available/$project.conf /etc/nginx/sites-enabled
+   sudo service nginx reload
 
-sudo ln -s /etc/nginx/sites-available/$project.conf /etc/nginx/sites-enabled
-sudo service nginx restart
-" > $project/uwsgi_nginx_deployment_readme.txt
-
-echo "Project skeleton creation complete."
+" > $resources/notes/deployment_notes.txt
