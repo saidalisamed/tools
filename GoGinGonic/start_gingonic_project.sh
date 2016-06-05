@@ -204,7 +204,8 @@ Deployment Notes
 ----------------
 1. Build $project for the destination architecture such as amd64:
 
-   env GOOS=linux GOARCH=amd64 go build -v $project/app.go
+   cd $project/
+   env GOOS=linux GOARCH=amd64 go build -v app.go
 
 2. Copy your project $project excluding the Go source app.go to your server (Ubuntu) in /var/www/html/$project.
 
@@ -226,7 +227,7 @@ script
 end script
 #################
 
-   mkdir /var/log/$project
+   sudo mkdir /var/log/$project
    sudo start $project
    sudo vim /etc/logrotate.d/$project
    # add the following
@@ -259,13 +260,14 @@ upstream $project {
 
 server {
     listen 80;
-    server_name www.example.com;
-    access_log /var/log/nginx/$project_access.log;
-    error_log /var/log/nginx/$project_error.log error;
+    server_name $project;
+    access_log /var/log/nginx/$project-access.log;
+    error_log /var/log/nginx/$project-error.log error;
     location /static/ { alias /var/www/html/$project/resources/static/; }
     location / {
         proxy_pass http://$project;
     }
+}
 #################
 
    sudo ln -s /etc/nginx/sites-available/$project.conf /etc/nginx/sites-enabled
